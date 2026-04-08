@@ -39,7 +39,7 @@ const MOBILE_NAV: MobileNavItem[] = [
   { href: "/app/discover", label: "Like", Icon: Heart },
   { href: "/app/messages", label: "Messages", Icon: MessageCircle },
   { href: "/app/discover", label: "Near", Icon: MapPin },
-  { href: "/app", label: "Profile", Icon: User },
+  { href: "/app/profile/me", label: "Profile", Icon: User },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

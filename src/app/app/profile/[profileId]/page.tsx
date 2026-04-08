@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
+import { getSession } from "@/lib/session";
 
 type Profile = {
   id: string;
@@ -71,7 +72,26 @@ type MediaTab = "all" | "picture" | "videos";
 export default function ProfilePage() {
   const params = useParams<{ profileId: string }>();
   const profileId = params.profileId;
-  const p = PROFILES[profileId] ?? PROFILES.p1;
+  const p = (() => {
+    if (profileId === "me") {
+      const s = getSession();
+      return {
+        id: "me",
+        name: s?.name ?? "You",
+        age: 27,
+        distanceLabel: "Your profile",
+        bio: "This is your profile (stub). Later: edit, verification, media upload, intentions.",
+        tags: ["Aligned", "Real", "Intentional"],
+        imageSrc: "/landing/profile-1.jpg",
+        bannerSrc: "/landing/profile-3.jpg",
+        online: true,
+        verified: false,
+        pictures: ["/landing/profile-1.jpg", "/landing/profile-2.jpg", "/landing/profile-3.jpg"],
+        videos: [],
+      } satisfies Profile;
+    }
+    return PROFILES[profileId] ?? PROFILES.p1;
+  })();
   const [tab, setTab] = useState<MediaTab>("all");
 
   const items =
