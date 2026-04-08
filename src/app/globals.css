@@ -1,0 +1,175 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Nunito:wght@300;400;500;600;700&display=swap");
+
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 260 30% 8%;
+    --foreground: 40 30% 92%;
+
+    --card: 260 25% 12%;
+    --card-foreground: 40 30% 92%;
+
+    --popover: 260 25% 12%;
+    --popover-foreground: 40 30% 92%;
+
+    --primary: 38 80% 55%;
+    --primary-foreground: 260 30% 8%;
+
+    --secondary: 280 30% 20%;
+    --secondary-foreground: 40 30% 92%;
+
+    --muted: 260 20% 18%;
+    --muted-foreground: 260 15% 55%;
+
+    --accent: 330 50% 55%;
+    --accent-foreground: 40 30% 95%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 40 30% 92%;
+
+    --border: 260 20% 20%;
+    --input: 260 20% 20%;
+    --ring: 38 80% 55%;
+
+    --radius: 1rem;
+
+    --spiritual-glow: 38 90% 60%;
+    --spiritual-purple: 270 50% 40%;
+    --spiritual-rose: 330 60% 60%;
+    --spiritual-indigo: 240 40% 25%;
+
+    --gradient-celestial: linear-gradient(
+      135deg,
+      hsl(260 30% 8%),
+      hsl(280 35% 15%),
+      hsl(260 30% 8%)
+    );
+    --gradient-golden: linear-gradient(135deg, hsl(38 80% 55%), hsl(45 90% 65%));
+    --gradient-card: linear-gradient(180deg, hsl(260 25% 14%), hsl(260 25% 10%));
+
+    --font-heading: "Playfair Display", serif;
+    --font-body: "Nunito", sans-serif;
+  }
+
+  /* Tailwind v4 theme tokens for `bg-background`, `text-foreground`, etc. */
+  @theme inline {
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer utilities {
+  .gradient-celestial {
+    background: var(--gradient-celestial);
+  }
+
+  .gradient-golden {
+    background: var(--gradient-golden);
+  }
+
+  .glow-golden {
+    box-shadow: 0 0 30px -5px hsl(var(--spiritual-glow) / 0.3);
+  }
+
+  .glow-soft {
+    box-shadow: 0 0 60px -10px hsl(var(--spiritual-glow) / 0.15);
+  }
+
+  .text-gradient-golden {
+    background: linear-gradient(135deg, hsl(38 80% 55%), hsl(45 90% 70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card-glass {
+    background: hsl(260 25% 12% / 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(260 20% 22% / 0.5);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      110deg,
+      transparent 25%,
+      hsl(38 80% 55% / 0.1) 37%,
+      transparent 63%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+}

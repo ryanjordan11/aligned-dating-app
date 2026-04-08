@@ -1,0 +1,133 @@
+const es = {
+  common: {
+    appName: "Aligned",
+    home: "Inicio",
+    blog: "Blog",
+    about: "Sobre",
+    safety: "Seguridad",
+    support: "Soporte",
+    language: "Idioma",
+    createAccount: "Crear cuenta",
+    backToLanding: "Volver al inicio",
+    soon: "Pronto",
+  },
+  landing: {
+    hero: {
+      titleLine1: "Encuentra tu match",
+      titleLine2: "en Aligned",
+      sub1: "Esto no se trata de más matches. Se trata del correcto.",
+      sub2a: "Creado para personas cansadas de perfiles falsos, bots y conversaciones que no llevan a nada.",
+      sub2b: "Sin juegos. Sin ruido. Solo gente real que quiere algo real.",
+    },
+    corePromise: {
+      kicker: "Promesa central",
+      title: "Deja de buscar. Empieza a alinearte.",
+      p1: "No eres difícil de compatibilizar. Solo nunca has estado alineado.",
+      p2: "No todos. Solo los que se alinean.",
+    },
+    features: {
+      kicker: "Funciones",
+      title: "Creado para alineación, no para atención",
+      p1: "Todo aquí está diseñado para quitar el caos y traer claridad.",
+      p2:
+        "Descubrimiento por preferencias, señales claras de verificación, likes mutuos y chat por consentimiento funcionan juntos para que se sienta intencional, no abrumador.",
+      dKicker: "Descubrimiento",
+      dBody: "Ve personas que realmente se alinean contigo. Sin perfiles al azar. Sin scroll infinito.",
+      vKicker: "Verificación",
+      vBody: "Los perfiles verificados destacan. Los no verificados se incluyen, pero van etiquetados.",
+      cKicker: "Consentimiento",
+      cBody: "Si no es mutuo, no pasa.",
+    },
+    discovery: {
+      kicker: "Descubrimiento",
+      title: "Ve personas que realmente se alinean contigo",
+      p1: "Sin perfiles al azar. Sin scroll infinito.",
+      p2: "Busca por ubicación, ciudad y lo que realmente importa.",
+      p3: "Porque no estás aquí por “cualquiera”. Estás aquí por alguien que encaja.",
+    },
+    verification: {
+      kicker: "Verificación",
+      title: "Nunca más adivinando quién es real",
+      p1: "Perfiles falsos. Bots. Estafadores. Eso es lo que la gente ya no quiere.",
+      p2: "Aquí es claro: los perfiles verificados destacan. Los no verificados se incluyen, pero van etiquetados.",
+      p3: "Tú decides con quién te involucras.",
+    },
+    consent: {
+      kicker: "Consentimiento",
+      title: "Si no es mutuo, no pasa",
+      p1: "Sin mensajes aleatorios. Sin conversaciones forzadas.",
+      p2: "Ambas personas eligen, o no empieza nada.",
+      p3: "Simple. Limpio. Respetado.",
+    },
+    how: {
+      kicker: "Cómo funciona",
+      title: "Un perfil. Un vibe. Un match alineado a la vez",
+      s1t: "Crea tu perfil",
+      s1b:
+        "Agrega tu nombre, edad, bio, fotos, ubicación y preferencias para aparecer exactamente como quieres.",
+      s2t: "Descubre",
+      s2b: "Explora un feed que respeta tus filtros y muestra personas que realmente se alinean contigo.",
+      s3t: "Dale like para conectar",
+      s3b: "Los likes mutuos se vuelven matches. Eso es interés real.",
+      s4t: "Chat",
+      s4b: "Solo se abre cuando ambos lo eligen. Si no es mutuo, no pasa.",
+    },
+    why: {
+      kicker: "Por qué Aligned",
+      title: "Conexión sin ruido. Alineación sin adivinanzas.",
+      p1: "Sin caos. Sin juegos de atención. Sin “¿qué hace esta persona aquí?”",
+      p2: "Solo:",
+      bullets: ["• Gente real", "• Intenciones reales", "• Conexión real"],
+      p3: "Lo vas a sentir de inmediato.",
+    },
+    trust: {
+      kicker: "Confianza",
+      title: "La confianza se ve, no se asume",
+      p1:
+        "Las vistas del perfil solo cuentan cuando alguien realmente abre tu perfil, no por impresiones al azar.",
+      p2: "Sin señales falsas. Sin actividad inflada.",
+      p3: "Lo que ves es real.",
+    },
+    energy: {
+      kicker: "Energía",
+      title: "Esto no es una máquina de swipes",
+      p1: "Es un espacio para:",
+      bullets: ["Valores en común", "Conversaciones reales", "Algo que realmente va a algún lado"],
+      p2: "Si todavía estás jugando, esto no es para ti.",
+      p3: "Si ya estás cansado de los juegos, te vas a sentir en casa aquí.",
+    },
+    faq: {
+      kicker: "FAQ",
+      title: "Respuestas, sin relleno",
+      q1: "¿Necesito estar verificado?",
+      a1:
+        "No. Puedes navegar y hacer match sin verificación. Los perfiles no verificados se etiquetan claramente.",
+      q2: "¿Qué pasa si alguien rechaza?",
+      a2: "Es definitivo. No pueden solicitar de nuevo para ese match.",
+      q3: "¿Y si me verifico después?",
+      a3: "Puedes seguir normalmente con tus matches.",
+    },
+    final: {
+      kicker: "Final",
+      title1: "La persona correcta no está en todas partes.",
+      title2: "Está donde se alinea.",
+      p1: "Crea tu perfil. Encuentra tu alineación.",
+    },
+  },
+  chat: {
+    open: "Haz una pregunta",
+    headerKicker: "Preguntas",
+    headerTitle: "Asistente Aligned",
+    placeholder: "Haz una pregunta…",
+    send: "Enviar",
+    quick: {
+      q1: "¿Cómo funciona la verificación?",
+      q2: "¿Es seguro?",
+      q3: "¿Cómo funcionan los matches?",
+      q4: "¿Puedo usarlo sin verificación?",
+    },
+  },
+};
+
+export default es;
+
