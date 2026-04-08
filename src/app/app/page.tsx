@@ -873,6 +873,124 @@ export default function AppHome() {
             </section>
 
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Location</p>
+              <p className="mt-3 text-xs text-white/60">Top countries</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { code: "US", label: "USA" },
+                    { code: "AU", label: "Australia" },
+                    { code: "CA", label: "Canada" },
+                  ] as const
+                ).map((c) => (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => {
+                      setCountryCode(c.code);
+                      setCountryQuery("");
+                      setCountryOpen(false);
+                      setRegion("");
+                    }}
+                    className={`rounded-3xl px-3 py-2 text-sm font-semibold transition ${
+                      countryCode === c.code
+                        ? "bg-white text-black"
+                        : "border border-white/10 bg-black/30 text-white/80 hover:bg-black/40"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid gap-2">
+                <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
+                  <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">Country</label>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      value={countryQuery || countryName(countryCode)}
+                      onChange={(e) => {
+                        setCountryQuery(e.target.value);
+                        setCountryOpen(true);
+                      }}
+                      onFocus={() => setCountryOpen(true)}
+                      placeholder="Type a country…"
+                      className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/35 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCountryOpen((v) => !v)}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/75 hover:bg-white/10 transition"
+                    >
+                      {countryOpen ? "Close" : "Select"}
+                    </button>
+                  </div>
+
+                  {countryOpen ? (
+                    <div className="mt-3 max-h-52 overflow-y-auto rounded-2xl border border-white/10 bg-black/60">
+                      {countries
+                        .filter((c) => {
+                          const q = countryQuery.trim().toLowerCase();
+                          if (!q) return true;
+                          return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
+                        })
+                        .slice(0, 80)
+                        .map((c) => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => {
+                              setCountryCode(c.code);
+                              setCountryQuery("");
+                              setCountryOpen(false);
+                              setRegion("");
+                            }}
+                            className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
+                              c.code === countryCode ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5"
+                            }`}
+                          >
+                            <span className="truncate">{c.name}</span>
+                            <span className="ml-3 shrink-0 text-xs font-semibold text-white/45">{c.code}</span>
+                          </button>
+                        ))}
+                      <div className="px-3 py-2 text-xs text-white/35">Type to search. Showing up to 80 results.</div>
+                    </div>
+                  ) : null}
+                </div>
+                {countryCode === "US" || countryCode === "CA" || countryCode === "AU" ? (
+                  <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
+                    <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">
+                      {countryCode === "US" ? "State" : countryCode === "CA" ? "Province" : "State / Territory"}
+                    </label>
+                    <select
+                      value={region}
+                      onChange={(e) => setRegion(e.target.value)}
+                      className="mt-2 w-full bg-transparent text-sm text-white/85 outline-none"
+                    >
+                      <option value="">Select…</option>
+                      {(countryCode === "US" ? US_STATES : countryCode === "CA" ? CA_PROVINCES : AU_STATES).map(
+                        (r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
+                    <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">Region</label>
+                    <input
+                      value={region}
+                      onChange={(e) => setRegion(e.target.value)}
+                      placeholder="State / province / region"
+                      className="mt-2 w-full bg-transparent text-sm text-white/85 placeholder:text-white/35 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Gender Preference</p>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {(
@@ -1024,133 +1142,6 @@ export default function AppHome() {
                     {s}
                   </button>
                 ))}
-              </div>
-            </section>
-
-            <section className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Location</p>
-              <p className="mt-3 text-xs text-white/60">Top countries</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { code: "US", label: "USA" },
-                    { code: "AU", label: "Australia" },
-                    { code: "CA", label: "Canada" },
-                  ] as const
-                ).map((c) => (
-                  <button
-                    key={c.code}
-                    type="button"
-                    onClick={() => {
-                      setCountryCode(c.code);
-                      setCountryQuery("");
-                      setCountryOpen(false);
-                      setRegion("");
-                    }}
-                    className={`rounded-3xl px-3 py-2 text-sm font-semibold transition ${
-                      countryCode === c.code
-                        ? "bg-white text-black"
-                        : "border border-white/10 bg-black/30 text-white/80 hover:bg-black/40"
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 grid gap-2">
-                <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
-                  <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">
-                    Country
-                  </label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      value={countryQuery || countryName(countryCode)}
-                      onChange={(e) => {
-                        setCountryQuery(e.target.value);
-                        setCountryOpen(true);
-                      }}
-                      onFocus={() => setCountryOpen(true)}
-                      placeholder="Type a country…"
-                      className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/35 outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCountryOpen((v) => !v)}
-                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/75 hover:bg-white/10 transition"
-                    >
-                      {countryOpen ? "Hide" : "Pick"}
-                    </button>
-                  </div>
-
-                  {countryOpen ? (
-                    <div className="mt-3 max-h-52 overflow-y-auto rounded-2xl border border-white/10 bg-black/60">
-                      {countries
-                        .filter((c) => {
-                          const q = countryQuery.trim().toLowerCase();
-                          if (!q) return true;
-                          return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
-                        })
-                        .slice(0, 80)
-                        .map((c) => (
-                          <button
-                            key={c.code}
-                            type="button"
-                            onClick={() => {
-                              setCountryCode(c.code);
-                              setCountryQuery("");
-                              setCountryOpen(false);
-                              setRegion("");
-                            }}
-                            className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
-                              c.code === countryCode ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5"
-                            }`}
-                          >
-                            <span className="truncate">{c.name}</span>
-                            <span className="ml-3 shrink-0 text-xs font-semibold text-white/45">{c.code}</span>
-                          </button>
-                        ))}
-                      <div className="px-3 py-2 text-xs text-white/35">
-                        Type to search. Showing up to 80 results.
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                {countryCode === "US" || countryCode === "CA" || countryCode === "AU" ? (
-                  <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
-                    <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">
-                      {countryCode === "US" ? "State" : countryCode === "CA" ? "Province" : "State / Territory"}
-                    </label>
-                    <select
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      className="mt-2 w-full bg-transparent text-sm text-white/85 outline-none"
-                    >
-                      <option value="">Select…</option>
-                      {(countryCode === "US"
-                        ? US_STATES
-                        : countryCode === "CA"
-                          ? CA_PROVINCES
-                          : AU_STATES
-                      ).map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="rounded-3xl border border-white/10 bg-black/30 p-3">
-                    <label className="text-xs font-semibold uppercase tracking-[0.25em] text-white/55">
-                      Region
-                    </label>
-                    <input
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      placeholder="State / province / region"
-                      className="mt-2 w-full bg-transparent text-sm text-white/85 placeholder:text-white/35 outline-none"
-                    />
-                  </div>
-                )}
               </div>
             </section>
 
