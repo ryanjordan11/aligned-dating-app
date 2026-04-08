@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
 import { getSession } from "@/lib/session";
+import { getProfile } from "@/lib/profile";
 
 type Profile = {
   id: string;
@@ -75,18 +76,21 @@ export default function ProfilePage() {
   const p = (() => {
     if (profileId === "me") {
       const s = getSession();
+      const prof = s ? getProfile(s.userId) : null;
       return {
         id: "me",
-        name: s?.name ?? "You",
+        name: prof?.name ?? s?.name ?? "You",
         age: 27,
-        distanceLabel: "Your profile",
+        distanceLabel: prof?.location?.city
+          ? `${prof.location.city}${prof.location.region ? `, ${prof.location.region}` : ""}`
+          : "Your profile",
         bio: "This is your profile (stub). Later: edit, verification, media upload, intentions.",
-        tags: ["Aligned", "Real", "Intentional"],
+        tags: [prof?.intention ? prof.intention.replace("_", " ") : "Aligned", "Real", "Intentional"],
         imageSrc: "/landing/profile-1.jpg",
         bannerSrc: "/landing/profile-3.jpg",
         online: true,
         verified: false,
-        pictures: ["/landing/profile-1.jpg", "/landing/profile-2.jpg", "/landing/profile-3.jpg"],
+        pictures: prof?.photos?.length ? prof.photos : ["/landing/profile-1.jpg", "/landing/profile-2.jpg", "/landing/profile-3.jpg"],
         videos: [],
       } satisfies Profile;
     }

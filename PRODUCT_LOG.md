@@ -12,3 +12,6 @@ This file logs product questions asked and the answers we locked in.
 
 - Q: Filters location country picker should allow any country.
   A: Yes. Country picker supports all countries (with a fallback list if `Intl.supportedValuesOf("region")` is missing).
+
+- Q: Where is onboarding (start of profile setup)?
+  A: Added `/app/onboarding` and gate new users there until profile is completed (localStorage stub until Convex).

@@ -20,7 +20,7 @@ export default function AuthPage() {
             type="button"
             onClick={() => {
               setSession({ role: "user" });
-              router.push("/app");
+              router.push("/app/onboarding");
             }}
             className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-white/90 transition hover:bg-white/10"
           >
@@ -30,7 +30,7 @@ export default function AuthPage() {
             type="button"
             onClick={() => {
               setSession({ role: "user" });
-              router.push("/app");
+              router.push("/app/onboarding");
             }}
             className="rounded-3xl bg-gradient-to-r from-rose-500 to-amber-400 px-5 py-4 text-sm font-semibold text-white shadow-[0_16px_45px_rgba(244,63,94,0.25)] transition hover:brightness-105"
           >

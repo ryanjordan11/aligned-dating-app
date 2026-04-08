@@ -16,6 +16,15 @@ Last updated: 2026-04-08
 Path: `/auth`
 
 - **Login button**: sets a local demo session and routes into `/app`.
+- If the user has not completed onboarding, they are routed into `/app/onboarding`.
+
+## Onboarding (Profile Setup)
+
+Path: `/app/onboarding`
+
+- First-time users are gated here until the profile is completed (localStorage stub for now).
+- Collects required basics: name, birthdate, gender, intentions, location (country/region/city).
+- Finishing onboarding routes to `/app`.
 
 ## Home Feed
 
