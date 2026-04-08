@@ -4,10 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, Heart, MessageCircle, SlidersHorizontal, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createChatRequest, remainingToday } from "@/lib/chatRequests";
 import { getSession } from "@/lib/session";
 import { hasLiked, likeProfile, listLikes } from "@/lib/likes";
 import { createMatch, listMatches, threadIdForProfile, type Match } from "@/lib/matches";
+import { getCountryOptions } from "@/lib/countries";
 
 type Profile = {
   id: string;
@@ -68,8 +70,6 @@ const PROFILES: Profile[] = [
 
 // Demo-only: pretend these people have already liked the current user, so mutual matches can happen.
 const LIKED_YOU_PROFILE_IDS = new Set<string>(["p2", "p4"]);
-
-type CountryOption = { code: string; name: string };
 
 const US_STATES = [
   "Alabama",
@@ -179,18 +179,15 @@ function ProfileCard({
   liked,
   matched,
   onLike,
+  onMessage,
 }: {
   p: Profile;
   priority?: boolean;
   liked: boolean;
   matched: boolean;
   onLike: () => void;
+  onMessage: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-
   return (
     <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/30">
       <div className="relative aspect-[3/4] w-full">
@@ -226,11 +223,7 @@ function ProfileCard({
             <button
               type="button"
               aria-label="Message"
-              onClick={() => {
-                setOpen(true);
-                setError(null);
-                setSent(false);
-              }}
+              onClick={onMessage}
               className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/10 text-white/90 backdrop-blur transition hover:bg-white/15"
             >
               <MessageCircle className="h-5 w-5" />
@@ -256,99 +249,21 @@ function ProfileCard({
           </div>
         </div>
       </div>
-
-      {open ? (
-        <div className="absolute inset-0 z-40">
-          <button
-            type="button"
-            aria-label="Close"
-            className="absolute inset-0 bg-black/70"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-[26px] border border-white/10 bg-black/85 p-4 backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-white/90">Request chat</p>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <p className="mt-2 text-sm text-white/70">
-              Send a request to <span className="text-white/90 font-semibold">{p.name}</span>. If accepted, messaging opens.
-            </p>
-
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value.slice(0, 300))}
-              placeholder="Write a short note (optional, 300 chars max)…"
-              className="mt-4 min-h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/90 placeholder:text-white/35 outline-none focus:border-white/20"
-            />
-            <div className="mt-2 flex items-center justify-between text-xs text-white/45">
-              <span>{note.length}/300</span>
-              <span>{(() => {
-                const s = getSession();
-                if (!s) return "—";
-                return `${remainingToday(s.userId)}/20 left today`;
-              })()}</span>
-            </div>
-
-            {error ? <p className="mt-2 text-sm text-rose-200">{error}</p> : null}
-            {sent ? <p className="mt-2 text-sm text-emerald-200">Request sent.</p> : null}
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const s = getSession();
-                  if (!s) {
-                    setError("You must be logged in.");
-                    return;
-                  }
-                  const res = createChatRequest({
-                    fromUserId: s.userId,
-                    toProfileId: p.id,
-                    toName: p.name,
-                    note,
-                  });
-                  if (!res.ok) {
-                    setError(res.error);
-                    return;
-                  }
-                  setError(null);
-                  setSent(true);
-                  setNote("");
-                }}
-                className="rounded-2xl bg-gradient-to-r from-rose-500 to-amber-400 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_45px_rgba(244,63,94,0.25)] transition hover:brightness-105"
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
 
 function SwipeCard({
   p,
+  liked,
+  matched,
   onPass,
   onHot,
   onMessage,
 }: {
   p: Profile;
+  liked: boolean;
+  matched: boolean;
   onPass: () => void;
   onHot: () => void;
   onMessage: () => void;
@@ -364,6 +279,20 @@ function SwipeCard({
           <Image src={p.imageSrc} alt="" fill className="object-cover" sizes="100vw" priority />
         </Link>
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+        {matched || liked ? (
+          <div className="absolute left-4 top-4 z-20">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold backdrop-blur ${
+                matched
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                  : "border-rose-500/30 bg-rose-500/10 text-rose-200"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${matched ? "bg-emerald-400" : "bg-rose-500"}`} />
+              {matched ? "Matched" : "Liked"}
+            </span>
+          </div>
+        ) : null}
 
         <div className="absolute bottom-0 left-0 right-0 z-20 p-4">
           <div className="rounded-[26px] border border-white/10 bg-black/40 p-4 backdrop-blur">
@@ -405,7 +334,12 @@ function SwipeCard({
                 type="button"
                 onClick={onHot}
                 aria-label="Hot"
-                className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-r from-rose-500 to-amber-400 text-white shadow-[0_16px_45px_rgba(244,63,94,0.25)] transition hover:brightness-105"
+                disabled={liked || matched}
+                className={`grid h-14 w-14 place-items-center rounded-full text-white shadow-[0_16px_45px_rgba(244,63,94,0.25)] transition ${
+                  liked || matched
+                    ? "bg-white/10 text-white/55 cursor-not-allowed shadow-none"
+                    : "bg-gradient-to-r from-rose-500 to-amber-400 hover:brightness-105"
+                }`}
               >
                 <Flame className="h-6 w-6" />
               </button>
@@ -413,7 +347,11 @@ function SwipeCard({
                 type="button"
                 onClick={onMessage}
                 aria-label="Message"
-                className="grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10"
+                className={`grid h-12 w-12 place-items-center rounded-full border border-white/10 transition ${
+                  matched
+                    ? "bg-white text-black hover:bg-white/90"
+                    : "bg-white/5 text-white/80 hover:bg-white/10"
+                }`}
               >
                 <MessageCircle className="h-5 w-5" />
               </button>
@@ -513,11 +451,17 @@ function AgeRange({
 }
 
 export default function AppHome() {
+  const router = useRouter();
   const [tab, setTab] = useState<"forYou" | "local" | "global">("forYou");
   const [mode, setMode] = useState<"grid" | "swipe">("grid");
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState<null | { profile: Profile; threadId: string }>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestProfile, setRequestProfile] = useState<Profile | null>(null);
+  const [requestNote, setRequestNote] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
 
   const session = useMemo(() => (typeof window === "undefined" ? null : getSession()), []);
   const userId = session?.userId ?? "demo_user";
@@ -562,35 +506,7 @@ export default function AppHome() {
   const [countryQuery, setCountryQuery] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
 
-  const countries = useMemo<CountryOption[]>(() => {
-    try {
-      // `Intl.supportedValuesOf("region")` returns ISO-3166 region codes in modern runtimes.
-      const sv = (Intl as unknown as { supportedValuesOf?: (t: string) => string[] }).supportedValuesOf;
-      const codes = sv?.("region") ?? [];
-      const dn = new Intl.DisplayNames(["en"], { type: "region" });
-      const opts = codes
-        .map((code) => ({ code, name: dn.of(code) ?? code }))
-        .filter((c) => typeof c.name === "string" && c.name.trim().length > 0 && c.code.length === 2);
-      // Keep commonly used countries first, then alphabetical.
-      const pin = new Map([
-        ["US", 0],
-        ["AU", 1],
-        ["CA", 2],
-      ]);
-      return opts.sort((a, b) => {
-        const ap = pin.get(a.code) ?? 999;
-        const bp = pin.get(b.code) ?? 999;
-        if (ap !== bp) return ap - bp;
-        return a.name.localeCompare(b.name);
-      });
-    } catch {
-      return [
-        { code: "US", name: "United States" },
-        { code: "AU", name: "Australia" },
-        { code: "CA", name: "Canada" },
-      ];
-    }
-  }, []);
+  const countries = useMemo(() => getCountryOptions(), []);
 
   const countryName = useMemo(() => {
     const map = new Map(countries.map((c) => [c.code, c.name]));
@@ -610,6 +526,16 @@ export default function AppHome() {
 
   const current = activeProfiles[swipeIndex % activeProfiles.length];
   const matchedIds = useMemo(() => new Set(matches.map((m) => m.profileId)), [matches]);
+  const currentLiked = likedIds.includes(current.id);
+  const currentMatched = matchedIds.has(current.id);
+
+  const openChatRequest = (p: Profile) => {
+    setRequestProfile(p);
+    setRequestOpen(true);
+    setRequestNote("");
+    setRequestError(null);
+    setRequestSent(false);
+  };
 
   const handleLike = (p: Profile) => {
     if (matchedIds.has(p.id)) return;
@@ -639,7 +565,7 @@ export default function AppHome() {
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Location</p>
           <div className="mt-1 flex items-center gap-2">
-            <p className="truncate text-base font-semibold text-white/90">United State</p>
+            <p className="truncate text-base font-semibold text-white/90">United States</p>
             <span className="text-white/50">▾</span>
           </div>
         </div>
@@ -732,6 +658,7 @@ export default function AppHome() {
               liked={likedIds.includes(p.id)}
               matched={matchedIds.has(p.id)}
               onLike={() => handleLike(p)}
+              onMessage={() => openChatRequest(p)}
             />
           ))}
         </section>
@@ -739,18 +666,108 @@ export default function AppHome() {
         <section className="mt-4">
           <SwipeCard
             p={current}
+            liked={currentLiked}
+            matched={currentMatched}
             onPass={() => setSwipeIndex((i) => i + 1)}
             onHot={() => {
               handleLike(current);
               setSwipeIndex((i) => i + 1);
             }}
             onMessage={() => {
-              // Placeholder until we wire message requests/matches.
-              setMode("grid");
+              if (currentMatched) {
+                router.push(`/app/messages/${threadIdForProfile(current.id)}`);
+                return;
+              }
+              openChatRequest(current);
             }}
           />
         </section>
       )}
+
+      {requestOpen && requestProfile ? (
+        <div className="fixed inset-0 z-[65]">
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setRequestOpen(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-[26px] border border-white/10 bg-black/85 p-4 backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white/90">Request chat</p>
+              <button
+                type="button"
+                onClick={() => setRequestOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm text-white/70">
+              Send a request to{" "}
+              <span className="text-white/90 font-semibold">{requestProfile.name}</span>. If accepted, messaging opens.
+            </p>
+
+            <textarea
+              value={requestNote}
+              onChange={(e) => setRequestNote(e.target.value.slice(0, 300))}
+              placeholder="Write a short note (optional, 300 chars max)…"
+              className="mt-4 min-h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/90 placeholder:text-white/35 outline-none focus:border-white/20"
+            />
+            <div className="mt-2 flex items-center justify-between text-xs text-white/45">
+              <span>{requestNote.length}/300</span>
+              <span>
+                {(() => {
+                  const s = getSession();
+                  if (!s) return "—";
+                  return `${remainingToday(s.userId)}/20 left today`;
+                })()}
+              </span>
+            </div>
+
+            {requestError ? <p className="mt-2 text-sm text-rose-200">{requestError}</p> : null}
+            {requestSent ? <p className="mt-2 text-sm text-emerald-200">Request sent.</p> : null}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRequestOpen(false)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const s = getSession();
+                  if (!s) {
+                    setRequestError("You must be logged in.");
+                    return;
+                  }
+                  const res = createChatRequest({
+                    fromUserId: s.userId,
+                    toProfileId: requestProfile.id,
+                    toName: requestProfile.name,
+                    note: requestNote,
+                  });
+                  if (!res.ok) {
+                    setRequestError(res.error);
+                    return;
+                  }
+                  setRequestError(null);
+                  setRequestSent(true);
+                  setRequestNote("");
+                }}
+                className="rounded-2xl bg-gradient-to-r from-rose-500 to-amber-400 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_45px_rgba(244,63,94,0.25)] transition hover:brightness-105"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {matchOpen ? (
         <div className="fixed inset-0 z-[70]">

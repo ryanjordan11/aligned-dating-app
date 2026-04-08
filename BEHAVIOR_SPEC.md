@@ -74,7 +74,7 @@ Opened from Home via sliders icon.
   - Verification: Any / Verified / Unverified
   - Sun sign: Any + 12 signs
   - Location:
-    - Country picker (type-to-search; all countries supported via `Intl`).
+    - Country picker (type-to-search; all countries supported. Uses `Intl` when available with a full fallback list).
     - US/CA/AU show state/province dropdown.
     - Other countries: region text input.
 

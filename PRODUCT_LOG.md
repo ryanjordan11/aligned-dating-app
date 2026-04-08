@@ -9,3 +9,6 @@ This file logs product questions asked and the answers we locked in.
 
 - Q: Keep a running file of what each thing does?
   A: Yes. Added `BEHAVIOR_SPEC.md` as the canonical running behavior document.
+
+- Q: Filters location country picker should allow any country.
+  A: Yes. Country picker supports all countries (with a fallback list if `Intl.supportedValuesOf("region")` is missing).
