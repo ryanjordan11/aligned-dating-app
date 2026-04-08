@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { clearSession, getSession } from "@/lib/session";
 import { useMounted } from "@/lib/useMounted";
-import { hasCompletedProfile } from "@/lib/profile";
 import { Heart, Home, MapPin, MessageCircle, User } from "lucide-react";
 
 function NavItem({
@@ -49,17 +48,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMessageThread = pathname.startsWith("/app/messages/") && pathname !== "/app/messages";
   const isProfileView = pathname.startsWith("/app/profile/");
-  const isOnboarding = pathname.startsWith("/app/onboarding");
-  const isFullScreen = isMessageThread || isProfileView || isOnboarding;
+  const isFullScreen = isMessageThread || isProfileView;
 
   useEffect(() => {
     if (!mounted) return;
     const s = getSession();
     if (!s) router.replace("/auth");
-    if (s && !isOnboarding && !hasCompletedProfile(s.userId)) {
-      router.replace("/app/onboarding");
-    }
-  }, [isOnboarding, mounted, router]);
+  }, [mounted, router]);
 
   if (!mounted) return null;
 
