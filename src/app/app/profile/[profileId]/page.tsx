@@ -3,9 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, MoreVertical } from "lucide-react";
 import { getSession } from "@/lib/session";
+import { getProfileDraft } from "@/lib/profileDraft";
+import { markYouViewed } from "@/lib/activity";
+import { getVerificationDraft } from "@/lib/verification";
 
 type Profile = {
   id: string;
@@ -13,7 +16,21 @@ type Profile = {
   age: number;
   distanceLabel: string;
   bio: string;
+  gender: string;
+  relationshipGoal: string;
+  sunSign: string;
+  mbti: string;
+  hasChildren: string;
+  wantsChildren: string;
+  everMarried: string;
+  currentlyMarried: string;
+  vaccinationStatus: string;
+  verificationStatus: "none" | "pending" | "approved";
   tags: string[];
+  practices: string[];
+  morningRitual: string;
+  manifesting: string;
+  reflection: string;
   imageSrc: string;
   bannerSrc: string;
   online?: boolean;
@@ -29,7 +46,21 @@ const PROFILES: Record<string, Profile> = {
     age: 27,
     distanceLabel: "3 km away from near you",
     bio: "Isabella loves traveling, good coffee, and meaningful conversations. She enjoys discovering new place.",
+    gender: "woman",
+    relationshipGoal: "long_term",
+    sunSign: "Libra",
+    mbti: "ENFJ",
+    hasChildren: "no",
+    wantsChildren: "unsure",
+    everMarried: "no",
+    currentlyMarried: "no",
+    vaccinationStatus: "vaccinated",
+    verificationStatus: "approved",
     tags: ["Friendly", "Meet", "Love"],
+    practices: ["Meditation", "Yoga", "Nature"],
+    morningRitual: "Coffee, journaling, and a silent walk before the day starts.",
+    manifesting: "Aligned love and a calmer pace of life.",
+    reflection: "Growing by staying consistent with what matters.",
     imageSrc: "/landing/profile-1.jpg",
     bannerSrc: "/landing/profile-3.jpg",
     online: true,
@@ -43,7 +74,21 @@ const PROFILES: Record<string, Profile> = {
     age: 24,
     distanceLabel: "8 km away from near you",
     bio: "I enjoy meaningful chats, and exploring new places. Creative, friendly, and always curious.",
+    gender: "woman",
+    relationshipGoal: "just_looking",
+    sunSign: "Gemini",
+    mbti: "INFP",
+    hasChildren: "no",
+    wantsChildren: "yes",
+    everMarried: "no",
+    currentlyMarried: "no",
+    vaccinationStatus: "prefer_not_to_say",
+    verificationStatus: "approved",
     tags: ["Wellness", "Movies", "Talks"],
+    practices: ["Breathwork", "Tarot", "Sound Healing"],
+    morningRitual: "Stretching, tea, and a few minutes of silence.",
+    manifesting: "A grounded partnership with shared intention.",
+    reflection: "Slowing down has been the biggest shift.",
     imageSrc: "/landing/profile-2.jpg",
     bannerSrc: "/landing/profile-1.jpg",
     online: true,
@@ -57,7 +102,21 @@ const PROFILES: Record<string, Profile> = {
     age: 29,
     distanceLabel: "Nearby",
     bio: "Energy first. Intention always. Looking for someone aligned.",
+    gender: "woman",
+    relationshipGoal: "long_term",
+    sunSign: "Scorpio",
+    mbti: "INTJ",
+    hasChildren: "yes",
+    wantsChildren: "no",
+    everMarried: "yes",
+    currentlyMarried: "no",
+    vaccinationStatus: "vax_free",
+    verificationStatus: "none",
     tags: ["Yoga", "Travel", "Coffee"],
+    practices: ["Astrology", "Reiki", "Soul Prompts"],
+    morningRitual: "Sunlight, breathwork, and a quick gratitude check-in.",
+    manifesting: "Deep connection with someone emotionally available.",
+    reflection: "Protecting my energy is part of the work.",
     imageSrc: "/landing/profile-3.jpg",
     bannerSrc: "/landing/profile-2.jpg",
     online: false,
@@ -69,30 +128,95 @@ const PROFILES: Record<string, Profile> = {
 
 type MediaTab = "all" | "picture" | "videos";
 
+function ageFromBirthDate(birthDate?: string): number | null {
+  if (!birthDate) return null;
+  const [yearStr, monthStr, dayStr] = birthDate.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!year || !month || !day) return null;
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const beforeBirthday =
+    today.getMonth() + 1 < month || ((today.getMonth() + 1 === month) && today.getDate() < day);
+  if (beforeBirthday) age -= 1;
+  return age;
+}
+
+function formatSignal(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function ProfilePage() {
   const params = useParams<{ profileId: string }>();
   const profileId = params.profileId;
+  const session = profileId === "me" ? getSession() : null;
+  const draft = session ? getProfileDraft(session.userId) : null;
+  const verification = session ? getVerificationDraft(session.userId) : null;
+  useEffect(() => {
+    if (profileId === "me") return;
+    const s = getSession();
+    if (!s) return;
+    markYouViewed(s.userId, profileId);
+  }, [profileId]);
   const p = (() => {
     if (profileId === "me") {
-      const s = getSession();
+      const s = session;
+      const draftAge = ageFromBirthDate(draft?.birthDate);
       return {
         id: "me",
-        name: s?.name ?? "You",
-        age: 27,
-        distanceLabel: "Your profile",
-        bio: "This is your profile (stub). Later: edit, verification, media upload, intentions.",
+        name: draft?.name?.trim() || s?.name || "You",
+        age: draftAge ?? 27,
+        distanceLabel:
+          draft?.currentCity || draft?.currentCountryCode
+            ? [draft.currentCity, draft.currentCountryCode].filter(Boolean).join(", ")
+            : "Your profile",
+        bio: draft?.bio?.trim() || "This is your profile (stub). Later: edit, verification, media upload, intentions.",
+        gender: draft?.gender || "female",
+        relationshipGoal: draft?.relationshipGoal || "",
+        sunSign: draft?.sunSign || "",
+        mbti: draft?.mbti || "",
+        hasChildren: draft?.hasChildren === "" ? "" : draft?.hasChildren ? "yes" : "no",
+        wantsChildren: draft?.wantsChildren || "",
+        everMarried: draft?.everMarried === "" ? "" : draft?.everMarried ? "yes" : "no",
+        currentlyMarried: draft?.currentlyMarried === "" ? "" : draft?.currentlyMarried ? "yes" : "no",
+        vaccinationStatus: draft?.vaccinationStatus || "",
+        verificationStatus: verification?.status ?? "none",
         tags: ["Aligned", "Real", "Intentional"],
-        imageSrc: "/landing/profile-1.jpg",
-        bannerSrc: "/landing/profile-3.jpg",
+        practices: draft?.practices ?? [],
+        morningRitual: draft?.morningRitual?.trim() || "",
+        manifesting: draft?.manifesting?.trim() || "",
+        reflection: draft?.reflection?.trim() || "",
+        imageSrc: draft?.photoUrls[0] || "/landing/profile-1.jpg",
+        bannerSrc: draft?.backgroundPhotoUrl || "/landing/profile-3.jpg",
         online: true,
-        verified: false,
-        pictures: ["/landing/profile-1.jpg", "/landing/profile-2.jpg", "/landing/profile-3.jpg"],
+        verified: verification?.status === "approved",
+        pictures: draft?.photoUrls.length ? draft.photoUrls : ["/landing/profile-1.jpg", "/landing/profile-2.jpg", "/landing/profile-3.jpg"],
         videos: [],
       } satisfies Profile;
     }
     return PROFILES[profileId] ?? PROFILES.p1;
   })();
   const [tab, setTab] = useState<MediaTab>("all");
+  const signalPills = [
+    p.relationshipGoal,
+    p.practices[0],
+    p.sunSign || p.mbti,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map(formatSignal)
+    .slice(0, 3);
+  const verificationLabel =
+    p.verificationStatus === "approved"
+      ? "Verified"
+      : p.verificationStatus === "pending"
+        ? "Pending"
+        : "Unverified";
 
   const items =
     tab === "picture"
@@ -100,6 +224,7 @@ export default function ProfilePage() {
       : tab === "videos"
         ? p.videos.map((src) => ({ kind: "video" as const, src }))
         : [...p.pictures.map((src) => ({ kind: "picture" as const, src })), ...p.videos.map((src) => ({ kind: "video" as const, src }))];
+  const showComingSoon = tab === "videos";
 
   return (
     <div className="w-full">
@@ -137,11 +262,17 @@ export default function ProfilePage() {
           <div className="mt-4 text-center">
             <div className="inline-flex items-center gap-2">
               <p className="text-xl font-extrabold text-white">{p.name}</p>
-              {p.verified ? (
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-sky-400 text-[12px] font-black text-black">
-                  ✓
-                </span>
-              ) : null}
+              <span
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                  p.verificationStatus === "approved"
+                    ? "bg-sky-400 text-black"
+                    : p.verificationStatus === "pending"
+                      ? "bg-amber-300 text-black"
+                      : "bg-white/10 text-white/70"
+                }`}
+              >
+                {verificationLabel}
+              </span>
             </div>
 
             <div className="mt-2 inline-flex items-center gap-2 text-xs text-white/70">
@@ -153,13 +284,32 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              aria-label="Message"
-              className="rounded-full border border-white/10 bg-white/5 px-8 py-2.5 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
-            >
-              Message
-            </button>
+            {profileId === "me" ? (
+              <>
+                <Link
+                  href="/app/profile/edit"
+                  className="rounded-full border border-white/10 bg-white/5 px-8 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                >
+                  Edit profile
+                </Link>
+                {p.verificationStatus !== "approved" ? (
+                  <Link
+                    href="/app/verify"
+                    className="rounded-full border border-white/10 bg-white/5 px-8 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                  >
+                    Verify now
+                  </Link>
+                ) : null}
+              </>
+            ) : (
+              <button
+                type="button"
+                aria-label="Message"
+                className="rounded-full border border-white/10 bg-white/5 px-8 py-2.5 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+              >
+                Message
+              </button>
+            )}
             <button
               type="button"
               aria-label="Share"
@@ -170,14 +320,122 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {p.tags.map((t) => (
+            {signalPills.length ? signalPills.map((t) => (
               <span
                 key={t}
                 className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/80"
               >
                 {t}
               </span>
-            ))}
+            )) : null}
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <div className="grid gap-4">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Identity</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-white/45">Gender</p>
+                    <p className="mt-1 text-white/85">{p.gender || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">Location</p>
+                    <p className="mt-1 text-white/85">{p.distanceLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">Verification</p>
+                    <p className="mt-1 text-white/85">{verificationLabel}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Intentions</p>
+                <p className="mt-2 text-sm text-white/80">{p.relationshipGoal || "Not set"}</p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Astrology</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-white/45">Sun sign</p>
+                    <p className="mt-1 text-white/85">{p.sunSign || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">MBTI</p>
+                    <p className="mt-1 text-white/85">{p.mbti || "Not set"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Lifestyle</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-white/45">Has children</p>
+                    <p className="mt-1 text-white/85">{p.hasChildren || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">Wants children</p>
+                    <p className="mt-1 text-white/85">{p.wantsChildren || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">Ever married</p>
+                    <p className="mt-1 text-white/85">{p.everMarried || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45">Currently married</p>
+                    <p className="mt-1 text-white/85">{p.currentlyMarried || "Not set"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-white/45">Vaccination status</p>
+                    <p className="mt-1 text-white/85">{p.vaccinationStatus || "Not set"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Practices & rituals</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {p.practices.length ? (
+                  p.practices.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs font-semibold text-white/80"
+                    >
+                      {item}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm text-white/50">No practices added yet.</span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">My morning ritual looks like...</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                  {p.morningRitual || "No morning ritual added yet."}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">What I&apos;m manifesting right now...</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                  {p.manifesting || "No manifestation note added yet."}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Reflection</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                  {p.reflection || "No reflection added yet."}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="mt-7 rounded-[28px] border border-white/10 bg-white/5 p-4">
@@ -207,11 +465,16 @@ export default function ProfilePage() {
                   tab === "videos" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                Videos
+                Video
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            {showComingSoon ? (
+              <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
+                Coming soon
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-3">
               {items.length ? (
                 items.map((it, idx) => (
                   <div
@@ -233,7 +496,8 @@ export default function ProfilePage() {
                   No media yet.
                 </div>
               )}
-            </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid gap-3">

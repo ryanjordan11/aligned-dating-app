@@ -770,14 +770,20 @@ export default function AppHome() {
       ) : null}
 
       {matchOpen ? (
-        <div className="fixed inset-0 z-[70]">
+        <div
+          className="fixed inset-0 z-[70]"
+          onClick={() => setMatchOpen(null)}
+        >
           <div className="absolute inset-0 bg-black/80" />
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -left-20 top-16 h-72 w-72 rounded-full bg-rose-500/15 blur-3xl" />
             <div className="absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-sky-500/12 blur-3xl" />
           </div>
           <div className="relative flex min-h-[100svh] items-center justify-center px-4">
-            <div className="w-full max-w-md rounded-[32px] border border-white/10 bg-black/60 p-6 backdrop-blur">
+            <div
+              className="w-full max-w-md rounded-[32px] border border-white/10 bg-black/60 p-6 backdrop-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Aligned</p>
                 <button

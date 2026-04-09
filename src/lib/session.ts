@@ -36,6 +36,19 @@ export function setSession(partial?: Partial<AlignedSession>): AlignedSession {
   return session;
 }
 
+export function updateSession(partial: Partial<AlignedSession>): AlignedSession | null {
+  const cur = getSession();
+  if (!cur) return null;
+  const next: AlignedSession = {
+    ...cur,
+    ...partial,
+    userId: cur.userId,
+    createdAt: cur.createdAt,
+  };
+  window.localStorage.setItem(KEY, JSON.stringify(next));
+  return next;
+}
+
 export function clearSession() {
   try {
     window.localStorage.removeItem(KEY);
@@ -43,4 +56,3 @@ export function clearSession() {
     // ignore
   }
 }
-

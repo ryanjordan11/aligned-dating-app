@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { clearSession, getSession } from "@/lib/session";
 import { useMounted } from "@/lib/useMounted";
-import { Heart, Home, MapPin, MessageCircle, User } from "lucide-react";
+import { Activity, Heart, Home, MessageCircle, Sparkles, User } from "lucide-react";
 
 function NavItem({
   href,
@@ -38,7 +38,8 @@ const MOBILE_NAV: MobileNavItem[] = [
   { href: "/app", label: "Home", Icon: Home },
   { href: "/app/discover", label: "Like", Icon: Heart },
   { href: "/app/messages", label: "Messages", Icon: MessageCircle },
-  { href: "/app/discover", label: "Near", Icon: MapPin },
+  { href: "/app/activity", label: "Activity", Icon: Activity },
+  { href: "/app/community", label: "Community", Icon: Sparkles },
   { href: "/app/profile/me", label: "Profile", Icon: User },
 ];
 
@@ -48,7 +49,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMessageThread = pathname.startsWith("/app/messages/") && pathname !== "/app/messages";
   const isProfileView = pathname.startsWith("/app/profile/");
-  const isFullScreen = isMessageThread || isProfileView;
+  const isOnboarding = pathname.startsWith("/app/onboarding");
+  const isVerify = pathname.startsWith("/app/verify");
+  const isFullScreen = isMessageThread || isProfileView || isOnboarding || isVerify;
 
   useEffect(() => {
     if (!mounted) return;
@@ -71,6 +74,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <NavItem href="/app" label="Home" />
               <NavItem href="/app/discover" label="Discover" />
               <NavItem href="/app/messages" label="Messages" />
+              <NavItem href="/app/activity" label="Activity" />
+              <NavItem href="/app/community" label="Community" />
               <NavItem href="/app/admin" label="Admin" />
             </nav>
           </div>
