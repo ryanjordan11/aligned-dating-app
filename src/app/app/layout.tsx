@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { clearSession, getSession } from "@/lib/session";
+import { clearSession, getSession, hasCompletedOnboarding } from "@/lib/session";
 import { useMounted } from "@/lib/useMounted";
-import { Activity, Heart, Home, MessageCircle, Sparkles, User } from "lucide-react";
+import { Activity, Flame, Home, MessageCircle, Sparkles, User } from "lucide-react";
 
 function NavItem({
   href,
@@ -36,8 +36,8 @@ type MobileNavItem = {
 
 const MOBILE_NAV: MobileNavItem[] = [
   { href: "/app", label: "Home", Icon: Home },
-  { href: "/app/discover", label: "Like", Icon: Heart },
   { href: "/app/messages", label: "Messages", Icon: MessageCircle },
+  { href: "/app/vibes", label: "Vibes", Icon: Flame },
   { href: "/app/activity", label: "Activity", Icon: Activity },
   { href: "/app/community", label: "Community", Icon: Sparkles },
   { href: "/app/profile/me", label: "Profile", Icon: User },
@@ -56,8 +56,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
     const s = getSession();
-    if (!s) router.replace("/auth");
-  }, [mounted, router]);
+    if (!s) {
+      router.replace("/auth");
+      return;
+    }
+    if (!hasCompletedOnboarding() && !isOnboarding) {
+      router.replace("/app/onboarding");
+    }
+  }, [isOnboarding, mounted, router]);
 
   if (!mounted) return null;
 
@@ -72,7 +78,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
             <nav className="hidden items-center gap-2 md:flex" aria-label="App navigation">
               <NavItem href="/app" label="Home" />
-              <NavItem href="/app/discover" label="Discover" />
+              <NavItem href="/app/vibes" label="Vibes" />
               <NavItem href="/app/messages" label="Messages" />
               <NavItem href="/app/activity" label="Activity" />
               <NavItem href="/app/community" label="Community" />

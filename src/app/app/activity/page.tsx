@@ -90,6 +90,28 @@ export default function ActivityPage() {
         <main className="space-y-6 pt-4">
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="mb-4 flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-white/70" />
+              <h2 className="text-sm font-semibold">Your matches</h2>
+            </div>
+            <div className="space-y-3">
+              {matches.length ? (
+                matches.map((match) => (
+                  <UserRow
+                    key={match.id}
+                    href={`/app/messages/${match.threadId}`}
+                    name={match.name}
+                    imageSrc={match.imageSrc}
+                    subtitle="Tap to open chat"
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-white/50">No matches yet.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-4 flex items-center gap-2">
               <Users className="h-4 w-4 text-white/70" />
               <h2 className="text-sm font-semibold">Who viewed you</h2>
             </div>
@@ -185,27 +207,6 @@ export default function ActivityPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="mb-4 flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-white/70" />
-              <h2 className="text-sm font-semibold">Your matches</h2>
-            </div>
-            <div className="space-y-3">
-              {matches.length ? (
-                matches.map((match) => (
-                  <UserRow
-                    key={match.id}
-                    href={`/app/messages/${match.threadId}`}
-                    name={match.name}
-                    imageSrc={match.imageSrc}
-                    subtitle="Tap to open chat"
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-white/50">No matches yet.</p>
-              )}
-            </div>
-          </section>
         </main>
       </div>
     </div>

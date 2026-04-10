@@ -319,6 +319,68 @@ export default function ProfilePage() {
             </button>
           </div>
 
+          <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-4">
+            <div className="grid grid-cols-3 gap-2 rounded-full border border-white/10 bg-black/25 p-1">
+              <button
+                type="button"
+                onClick={() => setTab("all")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  tab === "all" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("picture")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  tab === "picture" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                Picture
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("videos")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  tab === "videos" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                Video
+              </button>
+            </div>
+
+            {showComingSoon ? (
+              <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
+                Coming soon
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+              {items.length ? (
+                items.map((it, idx) => (
+                  <div
+                    key={`${it.kind}-${it.src}-${idx}`}
+                    className="relative aspect-square overflow-hidden rounded-[22px] border border-white/10 bg-black/40"
+                  >
+                    <Image src={it.src} alt="" fill className="object-cover" sizes="50vw" />
+                    {it.kind === "video" ? (
+                      <div className="absolute inset-0 grid place-items-center">
+                        <div className="grid h-12 w-12 place-items-center rounded-full border border-white/15 bg-black/45 text-white/90 backdrop-blur">
+                          ▶
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
+                  No media yet.
+                </div>
+              )}
+              </div>
+            )}
+          </div>
+
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {signalPills.length ? signalPills.map((t) => (
               <span
@@ -436,68 +498,6 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="mt-7 rounded-[28px] border border-white/10 bg-white/5 p-4">
-            <div className="grid grid-cols-3 gap-2 rounded-full border border-white/10 bg-black/25 p-1">
-              <button
-                type="button"
-                onClick={() => setTab("all")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  tab === "all" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("picture")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  tab === "picture" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                Picture
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("videos")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  tab === "videos" ? "bg-white text-black" : "text-white/70 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                Video
-              </button>
-            </div>
-
-            {showComingSoon ? (
-              <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
-                Coming soon
-              </div>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-              {items.length ? (
-                items.map((it, idx) => (
-                  <div
-                    key={`${it.kind}-${it.src}-${idx}`}
-                    className="relative aspect-square overflow-hidden rounded-[22px] border border-white/10 bg-black/40"
-                  >
-                    <Image src={it.src} alt="" fill className="object-cover" sizes="50vw" />
-                    {it.kind === "video" ? (
-                      <div className="absolute inset-0 grid place-items-center">
-                        <div className="grid h-12 w-12 place-items-center rounded-full border border-white/15 bg-black/45 text-white/90 backdrop-blur">
-                          ▶
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-2 rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/60">
-                  No media yet.
-                </div>
-              )}
-              </div>
-            )}
           </div>
 
           <div className="mt-4 grid gap-3">

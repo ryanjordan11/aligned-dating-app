@@ -450,10 +450,10 @@ function AgeRange({
   );
 }
 
-export default function AppHome() {
+export function AppBrowse({ initialMode = "grid" }: { initialMode?: "grid" | "swipe" }) {
   const router = useRouter();
   const [tab, setTab] = useState<"forYou" | "local" | "global">("forYou");
-  const [mode, setMode] = useState<"grid" | "swipe">("grid");
+  const [mode] = useState<"grid" | "swipe">(initialMode);
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState<null | { profile: Profile; threadId: string }>(null);
@@ -572,10 +572,12 @@ export default function AppHome() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setMode((m) => (m === "grid" ? "swipe" : "grid"))}
-            aria-label={mode === "grid" ? "Switch to swipe view" : "Switch to grid view"}
+            onClick={() => router.push(initialMode === "grid" ? "/app/vibes" : "/app")}
+            aria-label={initialMode === "grid" ? "Open Vibes" : "Back to Home"}
             className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-              mode === "swipe" ? "border-white/20 bg-white text-black" : "border-white/10 bg-white/5 text-white/85 hover:bg-white/10"
+              initialMode === "swipe"
+                ? "border-white/20 bg-white text-black"
+                : "border-white/10 bg-white/5 text-white/85 hover:bg-white/10"
             }`}
           >
             <Flame className="h-5 w-5" />
@@ -1188,4 +1190,8 @@ export default function AppHome() {
       ) : null}
     </div>
   );
+}
+
+export default function AppHome() {
+  return <AppBrowse initialMode="grid" />;
 }

@@ -7,6 +7,7 @@ export type AlignedSession = {
   username?: string;
   role?: "user" | "support" | "moderator" | "admin" | "superadmin";
   createdAt: number;
+  onboardedAt?: number;
 };
 
 const KEY = "aligned_session_v0";
@@ -31,6 +32,7 @@ export function setSession(partial?: Partial<AlignedSession>): AlignedSession {
     username: partial?.username ?? "alignedryan",
     role: partial?.role ?? "user",
     createdAt: Date.now(),
+    onboardedAt: partial?.onboardedAt,
   };
   window.localStorage.setItem(KEY, JSON.stringify(session));
   return session;
@@ -55,4 +57,13 @@ export function clearSession() {
   } catch {
     // ignore
   }
+}
+
+export function hasCompletedOnboarding(): boolean {
+  const session = getSession();
+  return Boolean(session?.onboardedAt);
+}
+
+export function completeOnboarding(): AlignedSession | null {
+  return updateSession({ onboardedAt: Date.now() });
 }

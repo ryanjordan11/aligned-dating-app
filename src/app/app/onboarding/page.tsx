@@ -6,6 +6,7 @@ import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { getCountryOptions } from "@/lib/countries";
+import { completeOnboarding } from "@/lib/session";
 
 const GENDERS = ["male", "female", "non-binary"] as const;
 const MONTHS = [
@@ -263,6 +264,7 @@ export default function OnboardingPage() {
         updatedAt: Date.now(),
       }),
     );
+    completeOnboarding();
     router.push("/app");
   };
 
@@ -276,7 +278,7 @@ export default function OnboardingPage() {
 
       <button
         type="button"
-        onClick={() => router.push("/app")}
+        onClick={() => router.push("/auth")}
         aria-label="Exit onboarding"
         className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
       >
@@ -287,7 +289,7 @@ export default function OnboardingPage() {
         type="button"
         onClick={() => {
           if (step === 1) {
-            router.push("/app");
+            router.push("/auth");
             return;
           }
           setStep((s) => (s - 1) as 1 | 2 | 3 | 4);
