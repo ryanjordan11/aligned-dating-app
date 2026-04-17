@@ -21,14 +21,12 @@ function AuthForm() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [postAuthRedirect, setPostAuthRedirect] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) return;
-    if (busy) return;
-    router.replace(postAuthRedirect ?? "/app");
-  }, [busy, isAuthenticated, isLoading, postAuthRedirect, router]);
+    router.replace("/app");
+  }, [isAuthenticated, isLoading, router]);
 
   const setModeAndUrl = (next: "login" | "signup") => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -42,11 +40,8 @@ function AuthForm() {
     setBusy(true);
     setError(null);
     try {
-      const isSignUp = mode === "signup";
-      const target = isSignUp ? "/app/onboarding" : "/app";
-      setPostAuthRedirect(target);
       await signIn("password", {
-        flow: isSignUp ? "signUp" : "signIn",
+        flow: mode === "signup" ? "signUp" : "signIn",
         email: email.trim().toLowerCase(),
         password,
       });
@@ -63,7 +58,6 @@ function AuthForm() {
     setBusy(true);
     setError(null);
     try {
-      setPostAuthRedirect("/app/onboarding");
       const result = await signIn("google");
       if (result.redirect) window.location.href = result.redirect.toString();
     } catch (e) {
