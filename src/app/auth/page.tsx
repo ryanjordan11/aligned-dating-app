@@ -42,10 +42,11 @@ function AuthForm() {
     setBusy(true);
     setError(null);
     try {
-      const target = mode === "signup" ? "/app/onboarding" : "/app";
+      const isSignUp = mode === "signup";
+      const target = isSignUp ? "/app/onboarding" : "/app";
       setPostAuthRedirect(target);
       await signIn("password", {
-        flow: mode === "signup" ? "signUp" : "signIn",
+        flow: isSignUp ? "signUp" : "signIn",
         email: email.trim().toLowerCase(),
         password,
       });

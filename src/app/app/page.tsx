@@ -469,13 +469,6 @@ export function AppBrowse({ initialMode = "grid" }: { initialMode?: "grid" | "sw
   const [matches, setMatches] = useState<Match[]>([]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !hasCompletedOnboarding()) {
-      router.replace("/app/onboarding");
-      return;
-    }
-  }, [router]);
-
-  useEffect(() => {
     const load = () => {
       setLikedIds(listLikes(userId));
       setMatches(listMatches(userId));
