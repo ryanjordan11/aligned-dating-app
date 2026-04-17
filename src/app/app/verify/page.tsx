@@ -8,6 +8,7 @@ import { ArrowLeft, Camera, CheckCircle2, ShieldCheck, Sparkles } from "lucide-r
 import { getSession } from "@/lib/session";
 import { getVerificationDraft, saveVerificationDraft, type VerificationDraft } from "@/lib/verification";
 import { useMounted } from "@/lib/useMounted";
+import { useConvexAuth } from "convex/react";
 
 const PROMPTS = [
   "Hold up the peace sign",
@@ -29,6 +30,7 @@ function captureFrame(video: HTMLVideoElement): string {
 export default function VerifyPage() {
   const router = useRouter();
   const mounted = useMounted();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const session = getSession();
@@ -46,11 +48,12 @@ export default function VerifyPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (!session) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.replace("/auth");
       return;
     }
-  }, [mounted, router, session]);
+  }, [isAuthenticated, isLoading, mounted, router]);
 
   useEffect(() => {
     if (!mounted || !session) return;
@@ -108,8 +111,8 @@ export default function VerifyPage() {
     setSaving(false);
   };
 
-  if (!mounted) return null;
-  if (!session) return null;
+  if (!mounted || isLoading) return null;
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-[100svh] bg-black text-white">

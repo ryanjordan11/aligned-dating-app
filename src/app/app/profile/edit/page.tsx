@@ -9,6 +9,7 @@ import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { getCountryOptions } from "@/lib/countries";
 import { getSession, updateSession } from "@/lib/session";
 import { defaultProfileDraft, getProfileDraft, saveProfileDraft, type ProfileDraft } from "@/lib/profileDraft";
+import { useConvexAuth } from "convex/react";
 
 const GENDER_OPTIONS: ProfileDraft["gender"][] = ["female", "male", "non-binary"];
 const PREFERENCE_GENDER_OPTIONS: ProfileDraft["preferences"]["gender"][] = ["any", "female", "male", "non-binary"];
@@ -174,6 +175,7 @@ function Field({
 
 export default function EditProfilePage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
   const countryOptions = useMemo(() => getCountryOptions(), []);
@@ -198,9 +200,15 @@ export default function EditProfilePage() {
   };
 
   useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      router.replace("/auth");
+      return;
+    }
+
     const session = getSession();
     if (!session) {
-      router.replace("/auth");
+      // Local session should be hydrated by Providers shortly after auth.
       return;
     }
 
@@ -211,7 +219,7 @@ export default function EditProfilePage() {
       name: draft.name || session.name || "",
     });
     setMounted(true);
-  }, [router]);
+  }, [isAuthenticated, isLoading, router]);
 
   const handlePhotoFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -288,7 +296,7 @@ export default function EditProfilePage() {
     }
   };
 
-  if (!mounted) return null;
+  if (!mounted || isLoading) return null;
 
   return (
     <div className="min-h-[100svh] bg-black text-white">

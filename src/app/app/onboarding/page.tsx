@@ -1,12 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Camera, LocateFixed, X } from "lucide-react";
+import { ArrowLeft, Camera, LocateFixed } from "lucide-react";
 import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { getCountryOptions } from "@/lib/countries";
 import { completeOnboarding } from "@/lib/session";
+import { useConvexAuth, useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { useAuthActions } from "@convex-dev/auth/react";
 
 const GENDERS = ["male", "female", "non-binary"] as const;
 const MONTHS = [
@@ -85,30 +89,51 @@ function Wheel<T extends string>({
   onChange: (value: T) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
   const itemHeight = 40;
   const pad = 68;
   const currentIndex = Math.max(0, items.indexOf(value));
 
   useEffect(() => {
-    ref.current?.scrollTo({ top: currentIndex * itemHeight });
+    const el = ref.current;
+    if (!el) return;
+    // Prevent onScroll from re-triggering onChange while we sync scrollTop.
+    programmaticScrollRef.current = true;
+    el.scrollTo({ top: currentIndex * itemHeight });
+    const id = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [currentIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
     <div
       ref={ref}
-      className="relative h-44 flex-1 overflow-y-auto"
+      className="relative h-44 flex-1 snap-y snap-mandatory overflow-y-auto"
       style={{
-        scrollBehavior: "smooth",
         touchAction: "pan-y",
         scrollbarWidth: "none",
         scrollPaddingTop: `${pad}px`,
         scrollPaddingBottom: `${pad}px`,
       }}
       onScroll={(e) => {
+        if (programmaticScrollRef.current) return;
         const el = e.currentTarget;
-        const nextIndex = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / itemHeight)));
-        const nextValue = items[nextIndex];
-        if (nextValue && nextValue !== value) onChange(nextValue);
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+          // Use half-item offset instead of round() to reduce boundary jitter.
+          const raw = (el.scrollTop + itemHeight / 2) / itemHeight;
+          const nextIndex = Math.max(0, Math.min(items.length - 1, Math.floor(raw)));
+          const nextValue = items[nextIndex];
+          if (nextValue && nextValue !== value) onChange(nextValue);
+        });
       }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black to-transparent" />
@@ -217,6 +242,12 @@ function LocationAutocomplete({
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const completeOnboardingInConvex = useMutation(api.users.completeOnboarding);
+  const generateUploadUrl = useMutation(api.profiles.generateUploadUrl);
+  const upsertProfileFromOnboarding = useMutation(api.profiles.upsertFromOnboarding);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [name, setName] = useState("");
   const [gender, setGender] = useState<(typeof GENDERS)[number]>("female");
@@ -227,11 +258,17 @@ export default function OnboardingPage() {
   const [photoPreview, setPhotoPreview] = useState("");
   const [photoName, setPhotoName] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [finishBusy, setFinishBusy] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const canContinueName = name.trim().length > 0;
   const canContinueLocation = location.trim().length > 0;
-  const canFinish = photoPreview.length > 0 && !photoBusy;
+  const canFinish = photoPreview.length > 0 && !photoBusy && !finishBusy;
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated) router.replace("/auth");
+  }, [isAuthenticated, isLoading, router]);
 
   const handlePhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -250,22 +287,37 @@ export default function OnboardingPage() {
     }
   };
 
-  const finishOnboarding = () => {
+  const finishOnboarding = async () => {
     if (!canFinish) return;
-    localStorage.setItem(
-      "aligned-onboarding-draft",
-      JSON.stringify({
-        name,
+    setFinishBusy(true);
+    try {
+      const birthDate = `${birthYear}-${String(MONTHS.indexOf(birthMonth) + 1).padStart(2, "0")}-${birthDay}`;
+
+      // Upload compressed photo to Convex storage.
+      const uploadUrl = await generateUploadUrl({});
+      const blob = await (await fetch(photoPreview)).blob();
+      const uploadRes = await fetch(uploadUrl, {
+        method: "POST",
+        headers: blob.type ? { "Content-Type": blob.type } : undefined,
+        body: blob,
+      });
+      if (!uploadRes.ok) throw new Error("Photo upload failed");
+      const { storageId } = (await uploadRes.json()) as { storageId: string };
+
+      await upsertProfileFromOnboarding({
+        name: name.trim(),
         gender,
-        birthDate: `${birthYear}-${MONTHS.indexOf(birthMonth) + 1}-${birthDay}`,
-        location,
-        photoPreview,
-        photoName,
-        updatedAt: Date.now(),
-      }),
-    );
-    completeOnboarding();
-    router.push("/app");
+        birthDate,
+        location: location.trim(),
+        photoId: storageId as Id<"_storage">,
+      });
+
+      await completeOnboardingInConvex({});
+      completeOnboarding();
+      router.replace("/app");
+    } finally {
+      setFinishBusy(false);
+    }
   };
 
   return (
@@ -276,29 +328,41 @@ export default function OnboardingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(760px_560px_at_20%_80%,rgba(56,189,248,0.08),transparent_60%)]" />
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push("/auth")}
-        aria-label="Exit onboarding"
-        className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
-      >
-        <X className="h-5 w-5" />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          if (step === 1) {
-            router.push("/auth");
-            return;
-          }
-          setStep((s) => (s - 1) as 1 | 2 | 3 | 4);
-        }}
-        aria-label="Back"
-        className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </button>
+      <header className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between gap-3 px-4 py-4">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-rose-500 to-amber-400" />
+          <span className="text-sm font-bold tracking-tight text-white">Aligned</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
+              aria-label="Back"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={loggingOut}
+            onClick={async () => {
+              if (loggingOut) return;
+              setLoggingOut(true);
+              try {
+                await signOut();
+              } finally {
+                router.replace("/auth");
+                setLoggingOut(false);
+              }
+            }}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Log out
+          </button>
+        </div>
+      </header>
 
       <AnimatePresence mode="wait">
         {step === 1 ? (
@@ -489,7 +553,7 @@ export default function OnboardingPage() {
                 disabled={!canFinish}
                 className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-white/25 disabled:text-white/45"
               >
-                Finish
+                {finishBusy ? "Finishing..." : "Finish"}
               </button>
             </div>
           </motion.div>

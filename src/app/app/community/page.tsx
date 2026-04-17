@@ -3,13 +3,11 @@
 import Image from "next/image";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import {
-  Bookmark,
   Camera,
-  Heart,
+  Globe,
   MessageCircle,
   MoreHorizontal,
   Pencil,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -17,17 +15,33 @@ import { getSession } from "@/lib/session";
 import { getProfileDraft } from "@/lib/profileDraft";
 import {
   addCommunityComment,
+  addReaction,
   createCommunityPost,
   deleteCommunityComment,
   deleteCommunityPost,
+  getReactionCounts,
+  getTotalReactionCount,
+  getUserReaction,
   listCommunityPosts,
-  updateCommunityComment,
-  updateCommunityPost,
+  removeReaction,
+  toggleReaction,
   type CommunityComment,
   type CommunityPost,
+  type ReactionType,
+  updateCommunityComment,
+  updateCommunityPost,
 } from "@/lib/community";
 import { getVerificationDraft } from "@/lib/verification";
 import { useMounted } from "@/lib/useMounted";
+
+const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
+  { type: "like", emoji: "👍", label: "Like" },
+  { type: "love", emoji: "❤️", label: "Love" },
+  { type: "haha", emoji: "😂", label: "Haha" },
+  { type: "wow", emoji: "😮", label: "Wow" },
+  { type: "sad", emoji: "😢", label: "Sad" },
+  { type: "angry", emoji: "😠", label: "Angry" },
+];
 
 type ComposerState = {
   text: string;
@@ -41,14 +55,22 @@ type EditingCommentState = {
   text: string;
 } | null;
 
-function formatTimeAgo(createdAt: number): string {
+function formatTimestamp(createdAt: number): string {
   const diff = Date.now() - createdAt;
   const minutes = Math.max(1, Math.floor(diff / (1000 * 60)));
+  if (minutes < 1) return "Just now";
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  if (days < 7) return `${days}d`;
+  const date = new Date(createdAt);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const hour = date.getHours();
+  const minutesStr = date.getMinutes().toString().padStart(2, "0");
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${months[date.getMonth()]} ${date.getDate()} at ${hour12}:${minutesStr} ${ampm}`;
 }
 
 function compressImage(file: File, maxSize = 1600, quality = 0.84) {
@@ -118,6 +140,14 @@ function CommentRow({
   onSaveEdit,
   onCancelEdit,
   onChangeEditText,
+  replies,
+  onReply,
+  replyingTo,
+  onCancelReply,
+  replyText,
+  onChangeReplyText,
+  onSubmitReply,
+  isReply,
 }: {
   comment: CommunityComment;
   isOwn: boolean;
@@ -127,68 +157,154 @@ function CommentRow({
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onChangeEditText: (text: string) => void;
+  replies?: CommunityComment[];
+  onReply?: () => void;
+  replyingTo?: string | null;
+  onCancelReply?: () => void;
+  replyText?: string;
+  onChangeReplyText?: (text: string) => void;
+  onSubmitReply?: () => void;
+  isReply?: boolean;
 }) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-3">
-      <div className="flex items-start gap-3">
-        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
-          <Image src={comment.authorImageSrc} alt="" fill className="object-cover" sizes="40px" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-white/90">{comment.authorName}</p>
-              <p className="text-[11px] text-white/45">{formatTimeAgo(comment.createdAt)}</p>
-            </div>
-            {isOwn ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white/70 hover:bg-white/10"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white/70 hover:bg-white/10"
-                >
-                  Delete
-                </button>
-              </div>
-            ) : null}
-          </div>
+  const author = currentAuthor();
+  const isReplying = replyingTo === comment.id;
 
-          {editing ? (
-            <div className="mt-3 space-y-3">
-              <textarea
-                value={comment.text}
-                onChange={(e) => onChangeEditText(e.target.value)}
-                className="min-h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
-              />
-              <div className="flex gap-2">
+  return (
+    <div className={isReply ? "ml-10 mt-2" : ""}>
+      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+        <div className="flex items-start gap-3">
+          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+            <Image src={comment.authorImageSrc} alt="" fill className="object-cover" sizes="32px" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white/90">{comment.authorName}</p>
+                <p className="text-[11px] text-white/45">{formatTimestamp(comment.createdAt)}</p>
+              </div>
+              {isOwn ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="rounded-full px-2 py-1 text-[11px] font-semibold text-white/55 hover:bg-white/10 hover:text-white/70"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="rounded-full px-2 py-1 text-[11px] font-semibold text-white/55 hover:bg-white/10 hover:text-white/70"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {editing ? (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={comment.text}
+                  onChange={(e) => onChangeEditText(e.target.value)}
+                  className="min-h-16 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onSaveEdit}
+                    className="rounded-full bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCancelEdit}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1.5 text-sm leading-relaxed text-white/80">{comment.text}</p>
+            )}
+
+            {!editing && onReply && (
+              <button
+                type="button"
+                onClick={onReply}
+                className="mt-1.5 text-xs font-semibold text-white/45 hover:text-white/70"
+              >
+                Reply
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isReplying && (
+          <div className="mt-3 flex items-start gap-2">
+            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+              <Image src={author.imageSrc} alt="" fill className="object-cover" sizes="24px" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="overflow-hidden rounded-full border border-white/10 bg-white/5">
+                <div className="flex items-center">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => onChangeReplyText?.(e.target.value)}
+                    placeholder={`Reply to ${comment.authorName.split(" ")[0]}...`}
+                    className="min-h-9 w-full resize-none bg-transparent px-3 py-2 pr-16 text-sm text-white outline-none placeholder:text-white/45"
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = "auto";
+                      target.style.height = target.scrollHeight + "px";
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    disabled={!replyText?.trim()}
+                    onClick={onSubmitReply}
+                    className="mr-1.5 shrink-0 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Reply
+                  </button>
+                </div>
+              </div>
+              {onCancelReply && (
                 <button
                   type="button"
-                  onClick={onSaveEdit}
-                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancelEdit}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/75"
+                  onClick={onCancelReply}
+                  className="mt-1 text-xs text-white/45 hover:text-white/70"
                 >
                   Cancel
                 </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <p className="mt-2 text-sm leading-relaxed text-white/80">{comment.text}</p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      {replies && replies.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {replies.map((reply) => (
+            <CommentRow
+              key={reply.id}
+              comment={reply}
+              isOwn={reply.authorUserId === author.userId}
+              editing={false}
+              onEdit={() => {}}
+              onDelete={() => {}}
+              onSaveEdit={() => {}}
+              onCancelEdit={() => {}}
+              onChangeEditText={() => {}}
+              isReply
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -205,6 +321,8 @@ function PostCard({
   onDeleteComment,
   editingComment,
   setEditingComment,
+  onReactionChange,
+  onAddReply,
 }: {
   post: CommunityPost;
   isOwn: boolean;
@@ -217,30 +335,57 @@ function PostCard({
   onDeleteComment: (commentId: string) => void;
   editingComment: EditingCommentState;
   setEditingComment: (value: EditingCommentState) => void;
+  onReactionChange: () => void;
+  onAddReply: (parentId: string, text: string) => void;
 }) {
   const [commentText, setCommentText] = useState("");
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
   const author = currentAuthor();
   const [menuOpen, setMenuOpen] = useState(false);
+  const reactionButtonRef = useRef<HTMLButtonElement>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const reactionCounts = getReactionCounts(post.id);
+  const totalReactions = getTotalReactionCount(post.id);
+  const userReact = getUserReaction(post.id, author.userId);
+
+  const displayReactions = REACTIONS.filter((r) => reactionCounts[r.type] > 0);
+
+  const topLevelComments = post.comments.filter((c) => c.parentId === null);
+  const commentCount = topLevelComments.length;
+  const repliesMap = new Map<string, CommunityComment[]>();
+  for (const comment of post.comments) {
+    if (comment.parentId) {
+      const existing = repliesMap.get(comment.parentId) || [];
+      existing.push(comment);
+      repliesMap.set(comment.parentId, existing);
+    }
+  }
 
   return (
-    <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="relative h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-white/5">
-            <Image src={post.authorImageSrc} alt="" fill className="object-cover" sizes="48px" />
+    <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+            <Image src={post.authorImageSrc} alt="" fill className="object-cover" sizes="40px" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-semibold text-white">{post.authorName}</p>
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-white/60">
-                {post.authorVerified ? "Verified" : "Unverified"}
-              </span>
+              <p className="text-sm font-semibold text-white">{post.authorName}</p>
+              {post.authorVerified && (
+                <span className="rounded-full bg-blue-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  ✓
+                </span>
+              )}
             </div>
-            <p className="truncate text-xs text-white/45">
-              {post.authorUsername} · {formatTimeAgo(post.createdAt)}
-            </p>
+            <div className="flex items-center gap-1.5 text-xs text-white/55">
+              <span>{post.authorUsername}</span>
+              <span>·</span>
+              <span>{formatTimestamp(post.createdAt)}</span>
+              <span>·</span>
+              <Globe className="h-3 w-3" />
+            </div>
           </div>
         </div>
         <div className="relative">
@@ -248,12 +393,12 @@ function PostCard({
             type="button"
             aria-label="More"
             onClick={() => setMenuOpen((cur) => !cur)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/10 hover:text-white"
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
           {menuOpen ? (
-            <div className="absolute right-0 top-11 z-20 w-40 overflow-hidden rounded-2xl border border-white/10 bg-black/95 shadow-2xl">
+            <div className="absolute right-0 top-9 z-20 w-36 overflow-hidden rounded-xl border border-white/10 bg-black/95 shadow-2xl">
               {isOwn ? (
                 <>
                   <button
@@ -273,7 +418,7 @@ function PostCard({
                       setMenuOpen(false);
                       onDelete();
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/10"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete
@@ -293,124 +438,183 @@ function PostCard({
         </div>
       </div>
 
-      <div className="px-4 py-4">
-        <div className="overflow-hidden rounded-[24px] border border-white/10 bg-black/20">
-          <div className="relative aspect-[4/3] w-full">
+      <div className="px-4 pb-3">
+        <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/90">{post.text}</p>
+      </div>
+
+      {post.imageSrc ? (
+        <div className="relative w-full">
+          <div className="relative aspect-square w-full">
             <Image src={post.imageSrc} alt="" fill className="object-cover" sizes="100vw" />
           </div>
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-white/82">{post.text}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {post.tags.length ? (
-            post.tags.map((tag) => (
-              <span key={tag} className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-semibold text-white/70">
-                {tag}
-              </span>
-            ))
-          ) : (
-            <span className="text-sm text-white/45">No tags added</span>
+      ) : null}
+
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+        <div className="flex items-center gap-1">
+          {displayReactions.slice(0, 3).map((r) => (
+            <span key={r.type} className="-ml-1 first:ml-0">{r.emoji}</span>
+          ))}
+          {totalReactions > 0 && (
+            <span className="ml-2 text-sm text-white/60">{totalReactions}</span>
           )}
         </div>
+        <button
+          type="button"
+          onClick={onToggleComments}
+          className="text-sm text-white/60 hover:text-white"
+        >
+          {commentCount > 0 ? `${commentCount} comment${commentCount !== 1 ? "s" : ""}` : "Comment"}
+        </button>
       </div>
 
-      <div className="border-t border-white/10">
-        <div className="grid grid-cols-3">
-          <button
-            type="button"
-            onClick={() => setLiked((cur) => !cur)}
-            className={`flex items-center justify-center gap-2 py-3 text-sm font-semibold transition ${
-              liked ? "bg-rose-500/15 text-rose-300" : "text-white/70 hover:bg-white/5"
-            }`}
-          >
-            <Heart className={`h-4 w-4 ${liked ? "fill-rose-400 text-rose-400" : ""}`} />
-            Like
-          </button>
+      <div className="relative border-b border-white/10">
+        <div className="flex">
+          <div className="relative">
+            <button
+              ref={reactionButtonRef}
+              type="button"
+              onMouseEnter={() => setShowReactions(true)}
+              onMouseLeave={() => setShowReactions(false)}
+              onClick={() => {
+                if (userReact) {
+                  removeReaction(post.id, author.userId);
+                  onReactionChange();
+                } else {
+                  addReaction(post.id, author.userId, "like");
+                  onReactionChange();
+                }
+              }}
+              className="flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/5"
+            >
+              {userReact ? (
+                <span className="flex items-center gap-1.5">
+                  <span>{REACTIONS.find((r) => r.type === userReact.reaction)?.emoji}</span>
+                  <span className="text-blue-500">{REACTIONS.find((r) => r.type === userReact.reaction)?.label}</span>
+                </span>
+              ) : (
+                <span className="text-white/70">👍 Like</span>
+              )}
+            </button>
+            {showReactions && (
+              <div
+                className="absolute bottom-full left-0 z-30 mb-1 flex gap-1 rounded-full border border-white/20 bg-black/95 p-1.5 shadow-xl"
+                onMouseEnter={() => setShowReactions(true)}
+                onMouseLeave={() => setShowReactions(false)}
+              >
+                {REACTIONS.map((r) => (
+                  <button
+                    key={r.type}
+                    type="button"
+                    onClick={() => {
+                      toggleReaction(post.id, author.userId, r.type);
+                      setShowReactions(false);
+                      onReactionChange();
+                    }}
+                    className="group relative rounded-full p-1.5 transition hover:bg-white/10"
+                    title={r.label}
+                  >
+                    <span className="text-xl">{r.emoji}</span>
+                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-0.5 text-[10px] text-white opacity-0 transition group-hover:opacity-100">
+                      {r.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={onToggleComments}
-            className={`flex items-center justify-center gap-2 py-3 text-sm font-semibold transition ${
-              commentsOpen ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5"
-            }`}
+            className="flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/5"
           >
             <MessageCircle className="h-4 w-4" />
             Comment
           </button>
-          <button
-            type="button"
-            onClick={() => setSaved((cur) => !cur)}
-            className={`flex items-center justify-center gap-2 py-3 text-sm font-semibold transition ${
-              saved ? "bg-emerald-500/15 text-emerald-300" : "text-white/70 hover:bg-white/5"
-            }`}
-          >
-            <Bookmark className={`h-4 w-4 ${saved ? "fill-emerald-400 text-emerald-400" : ""}`} />
-            Save
-          </button>
         </div>
+      </div>
 
-        {commentsOpen ? (
-          <div className="border-t border-white/10 p-4">
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-3">
-              <div className="flex items-start gap-3">
-                <div className="relative h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-white/5">
-                  <Image src={author.imageSrc} alt="" fill className="object-cover" sizes="40px" />
-                </div>
-                <div className="min-w-0 flex-1">
+      {commentsOpen ? (
+        <div className="border-t border-white/10 p-4">
+          <div className="flex items-start gap-3">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+              <Image src={author.imageSrc} alt="" fill className="object-cover" sizes="32px" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="overflow-hidden rounded-full border border-white/10 bg-white/5">
+                <div className="flex items-center">
                   <textarea
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Write a comment..."
-                    className="min-h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
+                    className="min-h-10 w-full resize-none bg-transparent px-4 py-2.5 pr-14 text-sm text-white outline-none placeholder:text-white/45"
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = "auto";
+                      target.style.height = target.scrollHeight + "px";
+                    }}
                   />
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <p className="text-xs text-white/45">Commenting as {author.name}</p>
-                    <button
-                      type="button"
-                      disabled={!commentText.trim()}
-                      onClick={() => {
-                        onAddComment(commentText.trim());
-                        setCommentText("");
-                      }}
-                      className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:cursor-not-allowed disabled:opacity-35"
-                    >
-                      Post comment
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    disabled={!commentText.trim()}
+                    onClick={() => {
+                      onAddComment(commentText.trim());
+                      setCommentText("");
+                    }}
+                    className="mr-2 shrink-0 rounded-full bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Post
+                  </button>
                 </div>
               </div>
             </div>
-
-            <div className="mt-4 space-y-3">
-              {post.comments.length ? (
-                post.comments.map((comment) => {
-                  const own = comment.authorUserId === author.userId;
-                  const isEditing = editingComment?.postId === post.id && editingComment.commentId === comment.id;
-                  return (
-                    <CommentRow
-                      key={comment.id}
-                      comment={isEditing ? { ...comment, text: editingComment?.text ?? comment.text } : comment}
-                      isOwn={own}
-                      editing={isEditing}
-                      onEdit={() => setEditingComment({ postId: post.id, commentId: comment.id, text: comment.text })}
-                      onDelete={() => onDeleteComment(comment.id)}
-                      onSaveEdit={() => {
-                        if (!editingComment) return;
-                        onEditComment(comment.id, editingComment.text.trim());
-                        setEditingComment(null);
-                      }}
-                      onCancelEdit={() => setEditingComment(null)}
-                      onChangeEditText={(text) =>
-                        setEditingComment(editingComment ? { ...editingComment, text } : null)
-                      }
-                    />
-                  );
-                })
-              ) : (
-                <p className="text-sm text-white/45">No comments yet.</p>
-              )}
-            </div>
           </div>
-        ) : null}
-      </div>
+
+          <div className="mt-4 space-y-3">
+            {topLevelComments.map((comment) => {
+              const own = comment.authorUserId === author.userId;
+              const isEditing = editingComment?.postId === post.id && editingComment.commentId === comment.id;
+              const replies = repliesMap.get(comment.id) || [];
+              return (
+                <CommentRow
+                  key={comment.id}
+                  comment={isEditing ? { ...comment, text: editingComment?.text ?? comment.text } : comment}
+                  isOwn={own}
+                  editing={isEditing}
+                  onEdit={() => setEditingComment({ postId: post.id, commentId: comment.id, text: comment.text })}
+                  onDelete={() => onDeleteComment(comment.id)}
+                  onSaveEdit={() => {
+                    if (!editingComment) return;
+                    onEditComment(comment.id, editingComment.text.trim());
+                    setEditingComment(null);
+                  }}
+                  onCancelEdit={() => setEditingComment(null)}
+                  onChangeEditText={(text) =>
+                    setEditingComment(editingComment ? { ...editingComment, text } : null)
+                  }
+                  replies={replies}
+                  onReply={() => setReplyingTo(comment.id)}
+                  replyingTo={replyingTo}
+                  onCancelReply={() => {
+                    setReplyingTo(null);
+                    setReplyText("");
+                  }}
+                  replyText={replyText}
+                  onChangeReplyText={setReplyText}
+                  onSubmitReply={() => {
+                    if (replyText.trim()) {
+                      onAddReply(comment.id, replyText.trim());
+                      setReplyText("");
+                      setReplyingTo(null);
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -431,7 +635,9 @@ export default function CommunityPage() {
   const author = currentAuthor();
   const visiblePosts = posts;
 
-  const reload = () => setPosts(listCommunityPosts());
+  const reload = () => {
+    setPosts(listCommunityPosts());
+  };
 
   useEffect(() => {
     if (!mounted) return;
@@ -458,12 +664,12 @@ export default function CommunityPage() {
 
   const handleSubmitPost = () => {
     if (!author.userId) return;
-    if (!composer.text.trim() || !composer.imageSrc) return;
+    if (!composer.text.trim()) return;
 
     if (composer.editPostId) {
       updateCommunityPost(composer.editPostId, {
         text: composer.text.trim(),
-        imageSrc: composer.imageSrc,
+        imageSrc: composer.imageSrc || undefined,
       });
     } else {
       createCommunityPost({
@@ -473,7 +679,7 @@ export default function CommunityPage() {
         authorImageSrc: author.imageSrc,
         authorVerified: author.verified,
         text: composer.text.trim(),
-        imageSrc: composer.imageSrc,
+        imageSrc: composer.imageSrc || undefined,
       });
     }
 
@@ -514,6 +720,20 @@ export default function CommunityPage() {
     setActiveCommentsPostId(postId);
   };
 
+  const addReply = (postId: string, parentId: string, text: string) => {
+    if (!author.userId) return;
+    addCommunityComment({
+      postId,
+      parentId,
+      authorUserId: author.userId,
+      authorName: author.name,
+      authorImageSrc: author.imageSrc,
+      text,
+    });
+    reload();
+    setActiveCommentsPostId(postId);
+  };
+
   const editComment = (postId: string, commentId: string, text: string) => {
     updateCommunityComment(postId, commentId, text);
     reload();
@@ -537,93 +757,67 @@ export default function CommunityPage() {
         </div>
       </header>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10">
-            <Sparkles className="h-5 w-5 text-white/75" />
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-start gap-3">
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+            <Image src={author.imageSrc} alt="" fill className="object-cover" sizes="40px" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">Share what’s alive for you</p>
-            <p className="text-xs text-white/45">Reflections, rituals, events, and aligned conversations.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-white">{composer.editPostId ? "Edit post" : "Create post"}</p>
-            <p className="text-xs text-white/45">Add an image and a caption.</p>
-          </div>
-          {composer.editPostId ? (
-            <button
-              type="button"
-              onClick={() => setComposer({ text: "", imageSrc: "", editPostId: null })}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70 hover:bg-white/10"
-            >
-              Cancel edit
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_220px]">
-          <div className="space-y-3">
             <textarea
               value={composer.text}
               onChange={(e) => setComposer((cur) => ({ ...cur, text: e.target.value }))}
-              placeholder="Write your post..."
-              className="min-h-40 w-full resize-none rounded-[24px] border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none placeholder:text-white/35"
+              placeholder={`What's on your mind, ${author.name.split(" ")[0]}?`}
+              className="min-h-16 w-full resize-none bg-transparent text-[15px] text-white outline-none placeholder:text-white/45"
+              rows={1}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = "auto";
+                target.style.height = target.scrollHeight + "px";
+              }}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/10"
-              >
-                <Camera className="h-4 w-4" />
-                {composer.imageSrc ? "Change image" : "Add image"}
-              </button>
-              {composer.imageSrc ? (
+            {composer.imageSrc && (
+              <div className="relative mt-3 overflow-hidden rounded-xl">
+                <div className="relative aspect-video w-full">
+                  <Image src={composer.imageSrc} alt="Selected image preview" fill className="object-cover" />
+                </div>
                 <button
                   type="button"
                   onClick={() => setComposer((cur) => ({ ...cur, imageSrc: "" }))}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/10"
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white/80 transition hover:bg-black/80 hover:text-white"
                 >
-                  Remove image
+                  <X className="h-4 w-4" />
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleSubmitPost}
-                disabled={busy || !composer.text.trim() || !composer.imageSrc}
-                className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {composer.editPostId ? "Save changes" : "Post"}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePickImage}
-            />
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-black/25">
-              {composer.imageSrc ? (
-                <div className="relative aspect-[4/5] w-full">
-                  <Image src={composer.imageSrc} alt="Selected image preview" fill className="object-cover" />
-                </div>
-              ) : (
-                <div className="grid aspect-[4/5] place-items-center px-6 text-center text-sm text-white/45">
-                  Upload an image to preview it here.
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
+        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10"
+            >
+              <Camera className="h-5 w-5" />
+              <span>Photo</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={handleSubmitPost}
+            disabled={busy || !composer.text.trim()}
+            className="rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {composer.editPostId ? "Save" : "Post"}
+          </button>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePickImage}
+        />
       </section>
 
       <div className="space-y-4">
@@ -646,6 +840,8 @@ export default function CommunityPage() {
               onDeleteComment={(commentId) => removeComment(post.id, commentId)}
               editingComment={editingComment}
               setEditingComment={setEditingComment}
+              onReactionChange={reload}
+              onAddReply={(parentId, text) => addReply(post.id, parentId, text)}
             />
           );
         })}

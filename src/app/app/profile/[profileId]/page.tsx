@@ -2,13 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, MoreVertical } from "lucide-react";
+import { ArrowLeft, LogOut, MoreVertical, Settings, Shield, Headphones, Zap, X } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getProfileDraft } from "@/lib/profileDraft";
 import { markYouViewed } from "@/lib/activity";
 import { getVerificationDraft } from "@/lib/verification";
+import { useConvexAuth, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "../../../../../convex/_generated/api";
 
 type Profile = {
   id: string;
@@ -154,10 +157,16 @@ function formatSignal(value: string): string {
 
 export default function ProfilePage() {
   const params = useParams<{ profileId: string }>();
+  const router = useRouter();
   const profileId = params.profileId;
   const session = profileId === "me" ? getSession() : null;
   const draft = session ? getProfileDraft(session.userId) : null;
   const verification = session ? getVerificationDraft(session.userId) : null;
+  const { isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const convexMe = useQuery(api.profiles.me, profileId === "me" && isAuthenticated ? {} : "skip");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   useEffect(() => {
     if (profileId === "me") return;
     const s = getSession();
@@ -167,17 +176,20 @@ export default function ProfilePage() {
   const p = (() => {
     if (profileId === "me") {
       const s = session;
-      const draftAge = ageFromBirthDate(draft?.birthDate);
+      const birthDate = convexMe?.birthDate ?? draft?.birthDate;
+      const draftAge = ageFromBirthDate(birthDate);
+      const name = convexMe?.name?.trim() || draft?.name?.trim() || s?.name || "You";
+      const city = convexMe?.currentCity || draft?.currentCity || "";
       return {
         id: "me",
-        name: draft?.name?.trim() || s?.name || "You",
+        name,
         age: draftAge ?? 27,
         distanceLabel:
-          draft?.currentCity || draft?.currentCountryCode
-            ? [draft.currentCity, draft.currentCountryCode].filter(Boolean).join(", ")
+          city || draft?.currentCountryCode
+            ? [city, draft?.currentCountryCode].filter(Boolean).join(", ")
             : "Your profile",
         bio: draft?.bio?.trim() || "This is your profile (stub). Later: edit, verification, media upload, intentions.",
-        gender: draft?.gender || "female",
+        gender: convexMe?.gender || draft?.gender || "female",
         relationshipGoal: draft?.relationshipGoal || "",
         sunSign: draft?.sunSign || "",
         mbti: draft?.mbti || "",
@@ -192,7 +204,7 @@ export default function ProfilePage() {
         morningRitual: draft?.morningRitual?.trim() || "",
         manifesting: draft?.manifesting?.trim() || "",
         reflection: draft?.reflection?.trim() || "",
-        imageSrc: draft?.photoUrls[0] || "/landing/profile-1.jpg",
+        imageSrc: convexMe?.primaryPhotoUrl || draft?.photoUrls[0] || "/landing/profile-1.jpg",
         bannerSrc: draft?.backgroundPhotoUrl || "/landing/profile-3.jpg",
         online: true,
         verified: verification?.status === "approved",
@@ -245,6 +257,7 @@ export default function ProfilePage() {
           <button
             type="button"
             aria-label="More"
+            onClick={() => setMenuOpen(true)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/55"
           >
             <MoreVertical className="h-5 w-5" />
@@ -310,13 +323,6 @@ export default function ProfilePage() {
                 Message
               </button>
             )}
-            <button
-              type="button"
-              aria-label="Share"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </button>
           </div>
 
           <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-4">
@@ -510,6 +516,85 @@ export default function ProfilePage() {
           <div className="h-10" />
         </div>
       </section>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-[28px] border border-white/10 bg-black/95 p-4 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">Menu</p>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <Link
+                href="/app/settings"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/90 transition hover:bg-white/10"
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-sm font-medium">Account Settings</span>
+              </Link>
+              <Link
+                href="/app/settings/preferences"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/90 transition hover:bg-white/10"
+              >
+                <Shield className="h-5 w-5" />
+                <span className="text-sm font-medium">Preferences</span>
+              </Link>
+              <Link
+                href="/app/settings/privacy"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/90 transition hover:bg-white/10"
+              >
+                <Shield className="h-5 w-5" />
+                <span className="text-sm font-medium">Privacy & Safety</span>
+              </Link>
+              <Link
+                href="/app/settings/support"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/90 transition hover:bg-white/10"
+              >
+                <Headphones className="h-5 w-5" />
+                <span className="text-sm font-medium">Help / Support</span>
+              </Link>
+              <Link
+                href="/app/settings/upgrade"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/90 transition hover:bg-white/10"
+              >
+                <Zap className="h-5 w-5" />
+                <span className="text-sm font-medium">Upgrade</span>
+              </Link>
+              <div className="my-2 border-t border-white/10" />
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={async () => {
+                  setLoggingOut(true);
+                  try {
+                    await signOut();
+                    router.push("/auth");
+                  } catch (err) {
+                    console.error("Logout failed:", err);
+                    setLoggingOut(false);
+                  }
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-rose-400 transition hover:bg-rose-500/10 disabled:opacity-50"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-sm font-medium">{loggingOut ? "Logging out..." : "Log out"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

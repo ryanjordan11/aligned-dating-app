@@ -1,11 +1,12 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  users: defineTable({
-    // Will be used once Convex auth is wired in.
-    tokenIdentifier: v.optional(v.string()),
+  ...authTables,
 
+  appUsers: defineTable({
+    tokenIdentifier: v.string(),
     email: v.optional(v.string()),
     name: v.string(),
     username: v.string(),
@@ -23,7 +24,7 @@ export default defineSchema({
     .index("by_role", ["role"]),
 
   profiles: defineTable({
-    userId: v.id("users"),
+    userId: v.id("appUsers"),
 
     name: v.string(),
     gender: v.union(v.literal("male"), v.literal("female"), v.literal("non-binary")),
@@ -61,6 +62,8 @@ export default defineSchema({
     currentCity: v.string(),
     currentCountryCode: v.string(),
 
+    // Primary profile photo stored in Convex file storage.
+    primaryPhotoId: v.optional(v.id("_storage")),
     photoUrls: v.array(v.string()),
 
     preferences: v.object({
@@ -74,8 +77,8 @@ export default defineSchema({
   }).index("by_userId", ["userId"]),
 
   swipes: defineTable({
-    fromUserId: v.id("users"),
-    toUserId: v.id("users"),
+    fromUserId: v.id("appUsers"),
+    toUserId: v.id("appUsers"),
     action: v.union(v.literal("left"), v.literal("right"), v.literal("super")),
     createdAt: v.number(),
   })
@@ -86,8 +89,8 @@ export default defineSchema({
   matches: defineTable({
     // Deterministic key (e.g. `${minUserId}:${maxUserId}`) to enforce one match per pair.
     pairKey: v.string(),
-    user1Id: v.id("users"),
-    user2Id: v.id("users"),
+    user1Id: v.id("appUsers"),
+    user2Id: v.id("appUsers"),
     createdAt: v.number(),
   })
     .index("by_pairKey", ["pairKey"])
@@ -101,7 +104,7 @@ export default defineSchema({
 
   threadMembers: defineTable({
     threadId: v.id("threads"),
-    userId: v.id("users"),
+    userId: v.id("appUsers"),
     createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
@@ -110,14 +113,14 @@ export default defineSchema({
 
   messages: defineTable({
     threadId: v.id("threads"),
-    senderUserId: v.id("users"),
+    senderUserId: v.id("appUsers"),
     body: v.string(),
     createdAt: v.number(),
   }).index("by_thread_createdAt", ["threadId", "createdAt"]),
 
   chatRequests: defineTable({
-    fromUserId: v.id("users"),
-    toUserId: v.id("users"),
+    fromUserId: v.id("appUsers"),
+    toUserId: v.id("appUsers"),
     note: v.string(),
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected")),
     createdAt: v.number(),
