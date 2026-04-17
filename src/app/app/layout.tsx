@@ -68,11 +68,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace("/auth");
       return;
     }
-    // `appUser` is undefined while the query is loading.
-    if (appUser === undefined) return;
-    if (!appUser?.onboardedAt && !isOnboarding) {
-      router.replace("/app/onboarding");
-    }
   }, [appUser, isAuthenticated, isLoading, isOnboarding, mounted, router]);
 
   if (!mounted || isLoading || (isAuthenticated && appUser === undefined)) return null;
