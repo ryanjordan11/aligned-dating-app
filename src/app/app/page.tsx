@@ -192,7 +192,7 @@ function ProfileCard({
     <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/30">
       <div className="relative aspect-[3/4] w-full">
         <Link
-          href={`/app/profile/${p.id}`}
+          href={`/app/profile/${p.id}?from=${typeof window !== "undefined" ? window.location.pathname : "/app"}`}
           aria-label={`Open ${p.name}'s profile`}
           className="absolute inset-0 z-0"
         >

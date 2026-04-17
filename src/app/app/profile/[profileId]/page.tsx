@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { ArrowLeft, LogOut, MoreVertical, Settings, Shield, Headphones, Zap, X } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getProfileDraft } from "@/lib/profileDraft";
@@ -155,9 +155,11 @@ function formatSignal(value: string): string {
     .join(" ");
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const params = useParams<{ profileId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from") || "/app";
   const profileId = params.profileId;
   const session = profileId === "me" ? getSession() : null;
   const draft = session ? getProfileDraft(session.userId) : null;
@@ -241,59 +243,93 @@ export default function ProfilePage() {
   return (
     <div className="w-full">
       <section className="relative min-h-[100svh] overflow-hidden bg-black md:mx-auto md:max-w-md md:rounded-[32px] md:border md:border-white/10">
-        <div className="relative h-48 w-full">
-          <Image src={p.bannerSrc} alt="" fill className="object-cover" sizes="100vw" priority />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/85" />
+        {/* Hero image - 75% of screen */}
+        <div className="relative h-[75svh] w-full">
+          <Image src={p.imageSrc} alt="" fill className="object-cover" sizes="100vw" priority />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
 
-          <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-4">
-          <Link
-            href="/app"
+          {/* Back button - bottom right, aligned with signal pills */}
+          <button
+            type="button"
             aria-label="Back"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/55"
+            onClick={() => {
+              if (fromParam) {
+                router.push(fromParam);
+              } else {
+                router.push("/app");
+              }
+            }}
+            className="absolute right-4 bottom-6 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/60"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <p className="truncate px-2 text-sm font-semibold text-white/90">{p.name}</p>
+          </button>
+          {/* More button - top right, where it was */}
           <button
             type="button"
             aria-label="More"
             onClick={() => setMenuOpen(true)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/55"
+            className="absolute right-4 top-4 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/60"
           >
             <MoreVertical className="h-5 w-5" />
           </button>
-          </header>
+
+          {/* Name, age, status, location - overlaid on gradient */}
+          <div className="absolute bottom-6 left-4 right-4 z-10">
+            {/* Status badge */}
+            <span
+              className={`mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs font-semibold backdrop-blur ${
+                p.online
+                  ? "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"
+                  : "bg-black/40 text-white/70 border-white/20"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${p.online ? "bg-emerald-400" : "bg-white/40"}`} />
+              {p.online ? "Online" : "Offline"}
+            </span>
+
+            {/* Name and age */}
+            <div className="mt-2 flex items-center gap-3">
+              <p className="text-4xl font-bold text-white">{p.name}</p>
+              <p className="text-3xl text-white/80">{p.age}</p>
+            </div>
+
+            {/* Verification badge */}
+            <span
+              className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${
+                p.verificationStatus === "approved"
+                  ? "bg-sky-400/20 text-sky-200 border border-sky-400/30"
+                  : p.verificationStatus === "pending"
+                    ? "bg-amber-500/20 text-amber-200 border border-amber-400/30"
+                    : "bg-white/10 text-white/70 border border-white/20"
+              }`}
+            >
+              {verificationLabel}
+            </span>
+
+            {/* Location */}
+            <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
+              <span>{p.distanceLabel}</span>
+            </div>
+
+            {/* Signal pills */}
+            {signalPills.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {signalPills.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="relative px-4">
-          <div className="-mt-14 flex w-full justify-center">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full border-[3px] border-white/15 bg-black shadow-[0_18px_70px_rgba(0,0,0,0.6)]">
-              <Image src={p.imageSrc} alt="" fill className="object-cover" sizes="112px" />
-            </div>
-          </div>
-
-          <div className="mt-4 text-center">
-            <div className="inline-flex items-center gap-2">
-              <p className="text-xl font-extrabold text-white">{p.name}</p>
-              <span
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                  p.verificationStatus === "approved"
-                    ? "bg-sky-400 text-black"
-                    : p.verificationStatus === "pending"
-                      ? "bg-amber-300 text-black"
-                      : "bg-white/10 text-white/70"
-                }`}
-              >
-                {verificationLabel}
-              </span>
-            </div>
-
-            <div className="mt-2 inline-flex items-center gap-2 text-xs text-white/70">
-              <span className={`h-2 w-2 rounded-full ${p.online ? "bg-emerald-400" : "bg-white/25"}`} />
-              {p.online ? "Online" : "Offline"}
-            </div>
-
-            <p className="mt-4 text-sm leading-relaxed text-white/70">{p.bio}</p>
+          <div className="mt-6 text-center">
+            <p className="text-sm leading-relaxed text-white/70">{p.bio}</p>
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -385,17 +421,6 @@ export default function ProfilePage() {
               )}
               </div>
             )}
-          </div>
-
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {signalPills.length ? signalPills.map((t) => (
-              <span
-                key={t}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/80"
-              >
-                {t}
-              </span>
-            )) : null}
           </div>
 
           <div className="mt-6 space-y-4">
@@ -596,5 +621,13 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
