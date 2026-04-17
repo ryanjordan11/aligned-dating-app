@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, LogOut, MoreVertical, Settings, Shield, Headphones, Zap, X } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getProfileDraft } from "@/lib/profileDraft";
@@ -155,13 +155,11 @@ function formatSignal(value: string): string {
     .join(" ");
 }
 
-function ProfilePageContent() {
+export default function ProfilePage() {
   const params = useParams<{ profileId: string }>();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const fromParam = searchParams.get("from") || "/app";
   const profileId = params.profileId;
-  const session = profileId === "me" ? getSession() : null;
+  const session = useMemo(() => (profileId === "me" ? getSession() : null), [profileId]);
   const draft = session ? getProfileDraft(session.userId) : null;
   const verification = session ? getVerificationDraft(session.userId) : null;
   const { isAuthenticated } = useConvexAuth();
@@ -252,13 +250,7 @@ function ProfilePageContent() {
           <button
             type="button"
             aria-label="Back"
-            onClick={() => {
-              if (fromParam) {
-                router.push(fromParam);
-              } else {
-                router.push("/app");
-              }
-            }}
+            onClick={() => router.back()}
             className="absolute right-4 bottom-6 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/60"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -621,13 +613,5 @@ function ProfilePageContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function ProfilePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <ProfilePageContent />
-    </Suspense>
   );
 }
