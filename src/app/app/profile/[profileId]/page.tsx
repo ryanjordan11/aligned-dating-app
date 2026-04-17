@@ -158,23 +158,24 @@ function formatSignal(value: string): string {
 export default function ProfilePage() {
   const params = useParams<{ profileId: string }>();
   const router = useRouter();
-  const profileId = params.profileId;
-  const session = useMemo(() => (profileId === "me" ? getSession() : null), [profileId]);
+  const profileId = params.profileId ?? "";
+  const isMyProfile = profileId === "me";
+  const session = useMemo(() => (isMyProfile ? getSession() : null), [isMyProfile]);
   const draft = session ? getProfileDraft(session.userId) : null;
   const verification = session ? getVerificationDraft(session.userId) : null;
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
-  const convexMe = useQuery(api.profiles.me, profileId === "me" && isAuthenticated ? {} : "skip");
+  const convexMe = useQuery(api.profiles.me, isMyProfile && isAuthenticated ? {} : "skip");
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   useEffect(() => {
-    if (profileId === "me") return;
+    if (isMyProfile) return;
     const s = getSession();
     if (!s) return;
     markYouViewed(s.userId, profileId);
-  }, [profileId]);
+  }, [profileId, isMyProfile]);
   const p = (() => {
-    if (profileId === "me") {
+    if (isMyProfile) {
       const s = session;
       const birthDate = convexMe?.birthDate ?? draft?.birthDate;
       const draftAge = ageFromBirthDate(birthDate);
@@ -325,7 +326,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-3">
-            {profileId === "me" ? (
+            {isMyProfile ? (
               <>
                 <Link
                   href="/app/profile/edit"
